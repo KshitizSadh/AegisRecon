@@ -1,0 +1,107 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegisrecon"
+version = "0.1.0"
+description = "Enterprise-grade Attack Surface Intelligence and Bug Bounty Automation Framework"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "AegisRecon Contributors" }]
+keywords = [
+    "security",
+    "reconnaissance",
+    "bug-bounty",
+    "attack-surface",
+    "infosec",
+    "pentesting",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Security",
+]
+dependencies = [
+    "typer>=0.9",
+    "rich>=13.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "httpx>=0.24",
+    "sqlalchemy>=2.0",
+    "dnspython>=2.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "pre-commit>=3.0",
+]
+extras = [
+    "httpx>=0.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/aegisrecon/aegisrecon"
+Documentation = "https://aegisrecon.readthedocs.io"
+Source = "https://github.com/aegisrecon/aegisrecon"
+"Bug Reports" = "https://github.com/aegisrecon/aegisrecon/issues"
+
+[project.scripts]
+aegisrecon = "aegisrecon.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["aegisrecon*"]
+
+[tool.setuptools.package-data]
+aegisrecon = ["py.typed"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --cov=aegisrecon --cov-report=term-missing"
+testpaths = ["tests"]
+markers = [
+    "integration: integration tests requiring external network access",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["aegisrecon"]
+omit = ["aegisrecon/py.typed"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+show_missing = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "A"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["aegisrecon"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+no_implicit_optional = true
+check_untyped_defs = true
