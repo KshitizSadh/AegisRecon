@@ -268,6 +268,119 @@ class Report(Resource):
         return value.strip()
 
 
+class Port(Resource):
+    """An open TCP/UDP port observed on an asset's IP."""
+
+    asset_id: str = Field(description="Owning asset identifier")
+    port: int = Field(ge=1, le=65535, description="Port number")
+    protocol: str = Field(default="tcp", max_length=8, description="Transport protocol")
+    service: str = Field(default="", max_length=255, description="Detected service name")
+    source: str = Field(default="naabu", max_length=255, description="Discovery source")
+
+    @field_validator("protocol")
+    @classmethod
+    def _normalise_protocol(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class Parameter(Resource):
+    """A parameter observed on an endpoint."""
+
+    asset_id: str = Field(description="Owning asset identifier")
+    endpoint_id: str = Field(description="Owning endpoint identifier")
+    name: str = Field(min_length=1, max_length=1024, description="Parameter name")
+    location: str = Field(default="query", max_length=32, description="Parameter location (query/form/header/json)")
+    value_example: str = Field(default="", max_length=4096, description="A sample observed value")
+    source: str = Field(default="probe", max_length=255, description="Discovery source")
+
+    @field_validator("name")
+    @classmethod
+    def _normalise_name(cls, value: str) -> str:
+        return value.strip()
+
+
+class AssetFile(Resource):
+    """A file (e.g. JavaScript) harvested from an asset."""
+
+    asset_id: str = Field(description="Owning asset identifier")
+    url: str = Field(description="Absolute URL of the file")
+    kind: str = Field(default="javascript", max_length=64, description="File classification")
+    hash: str = Field(default="", max_length=128, description="Content hash for change detection")
+    size: int = Field(default=0, ge=0, description="Content length in bytes")
+    content: str = Field(default="", description="File contents (may be large)")
+    path: str = Field(
+        default="",
+        max_length=2048,
+        description="On-disk location for binary files (e.g. screenshots)",
+    )
+
+    @field_validator("url")
+    @classmethod
+    def _normalise_url(cls, value: str) -> str:
+        candidate = value.strip()
+        if "://" not in candidate:
+            raise ValueError(f"file URL must include a scheme: {value!r}")
+        return candidate
+
+
+class Secret(Resource):
+    """A credential or sensitive value detected in an asset's content."""
+
+    program_id: str = Field(description="Owning program identifier")
+    asset_id: str = Field(description="Owning asset identifier")
+    kind: str = Field(min_length=1, max_length=128, description="Secret classification, e.g. 'aws_access_key_id'")
+    value: str = Field(description="The detected secret value")
+    context: str = Field(default="", max_length=4096, description="Surrounding context snippet")
+    location: str = Field(default="", max_length=2048, description="Where it was found (file URL or asset)")
+    entropy: float = Field(default=0.0, ge=0.0, le=8.0, description="Shannon entropy of the value")
+    is_verified: bool = Field(default=False, description="Whether the secret was confirmed valid")
+
+    @field_validator("value", "location", "context")
+    @classmethod
+    def _strip(cls, value: str) -> str:
+        return value.strip()
+
+
+class Snapshot(Resource):
+    """An immutable observation of an entity at a point in time, for diff/change detection."""
+
+    program_id: str = Field(description="Owning program identifier")
+    entity_type: str = Field(min_length=1, max_length=64, description="Entity type, e.g. 'endpoint'")
+    entity_id: str = Field(description="Entity to which this snapshot belongs")
+    label: str = Field(default="", max_length=512, description="Human label for the snapshot")
+    data: dict[str, Any] = Field(default_factory=dict, description="Serialized entity state")
+    checksum: str = Field(default="", max_length=512, description="SHA hash of data for fast diffing")
+
+    @field_validator("entity_type")
+    @classmethod
+    def _normalise_entity_type(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class ScheduledJob(Resource):
+    """A recurring workflow to run for a program."""
+
+    program_id: str = Field(description="Owning program identifier")
+    name: str = Field(min_length=1, max_length=255, description="Unique job name")
+    workflow: str = Field(
+        min_length=1, max_length=64, description="Workflow to run: probe, monitor, secrets, ports, harvest"
+    )
+    interval_seconds: int = Field(
+        default=86400, ge=60, le=31536000, description="Minimum delay between runs"
+    )
+    enabled: bool = Field(default=True, description="Whether the job runs when due")
+    last_run_at: datetime | None = Field(
+        default=None, description="Timestamp of the last completed run"
+    )
+    last_status: str = Field(default="", max_length=32, description="Outcome of the last run")
+    run_count: int = Field(default=0, ge=0, description="Number of completed runs")
+
+    @field_validator("name", "workflow")
+    @classmethod
+    def _strip_text(cls, value: str) -> str:
+        return value.strip().lower()
+
+
 class ProgramSummary(BaseModel):
     """Aggregate statistics computed over a program's assets."""
 
@@ -282,8 +395,6 @@ class ProgramSummary(BaseModel):
     total_findings: int = Field(default=0, ge=0)
     by_kind: dict[str, int] = Field(default_factory=dict)
     by_severity: dict[str, int] = Field(default_factory=dict)
-
-
 __all__ = [
     "Program",
     "ScopeEntry",
@@ -300,6 +411,12 @@ __all__ = [
     "FindingSeverity",
     "FindingStatus",
     "Report",
+    "Port",
+    "Parameter",
+    "AssetFile",
+    "Secret",
+    "Snapshot",
+    "ScheduledJob",
     "ProgramSummary",
     "Resource",
     "new_uuid",

@@ -100,11 +100,21 @@ def init(
 
 # Sub-command groups are registered at import time to keep this file minimal.
 from aegisrecon.cli_groups import (  # noqa: E402, F401
+    asset_group,
     config_group,
+    finding_group,
+    harvest_group,
+    monitor_group,
+    notify_group,
+    ports_group,
+    probe_group,
     program_group,
     recon_group,
     report_group,
+    schedule_group,
     scope_group,
+    screenshot_group,
+    secrets_group,
 )
 
 app.add_typer(program_group, name="program", help="Manage engagement programs.")
@@ -112,5 +122,15 @@ app.add_typer(scope_group, name="scope", help="Manage program scope rules.")
 app.add_typer(recon_group, name="recon", help="Run reconnaissance workflows.")
 app.add_typer(report_group, name="report", help="Generate engagement reports.")
 app.add_typer(config_group, name="config", help="Inspect runtime configuration.")
+app.add_typer(probe_group, name="probe", help="Probe assets for live endpoints.")
+app.add_typer(harvest_group, name="harvest", help="Harvest and store JavaScript files.")
+app.add_typer(secrets_group, name="secrets", help="Detect and manage leaked secrets.")
+app.add_typer(ports_group, name="ports", help="Discover open ports on assets.")
+app.add_typer(screenshot_group, name="screenshot", help="Capture screenshots of live endpoints.")
+app.add_typer(monitor_group, name="monitor", help="Snapshot state and detect changes.")
+app.add_typer(asset_group, name="asset", help="List and inspect discovered assets.")
+app.add_typer(finding_group, name="finding", help="Query and triage findings.")
+app.add_typer(notify_group, name="notify", help="Deliver notifications to external channels.")
+app.add_typer(schedule_group, name="schedule", help="Manage recurring scheduled workflows.")
 
 __all__ = ["app", "load_settings", "load_database"]

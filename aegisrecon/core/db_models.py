@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -170,6 +170,106 @@ class ReportORM(Base):
     )
 
 
+class PortORM(Base):
+    __tablename__ = "ports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    asset_id: Mapped[str] = mapped_column(String(36), ForeignKey("assets.id"), index=True)
+    port: Mapped[int] = mapped_column(Integer, index=True)
+    protocol: Mapped[str] = mapped_column(String(8), default="tcp")
+    service: Mapped[str] = mapped_column(String(255), default="")
+    source: Mapped[str] = mapped_column(String(255), default="naabu")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
+class ParameterORM(Base):
+    __tablename__ = "parameters"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    asset_id: Mapped[str] = mapped_column(String(36), ForeignKey("assets.id"), index=True)
+    endpoint_id: Mapped[str] = mapped_column(String(36), ForeignKey("endpoints.id"), index=True)
+    name: Mapped[str] = mapped_column(String(1024), index=True)
+    location: Mapped[str] = mapped_column(String(32), default="query")
+    value_example: Mapped[str] = mapped_column(String(4096), default="")
+    source: Mapped[str] = mapped_column(String(255), default="probe")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
+class AssetFileORM(Base):
+    __tablename__ = "asset_files"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    asset_id: Mapped[str] = mapped_column(String(36), ForeignKey("assets.id"), index=True)
+    url: Mapped[str] = mapped_column(Text, index=True)
+    kind: Mapped[str] = mapped_column(String(64), default="javascript")
+    hash: Mapped[str] = mapped_column(String(128), default="")
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    content: Mapped[str] = mapped_column(Text, default="")
+    path: Mapped[str] = mapped_column(String(2048), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
+class SecretORM(Base):
+    __tablename__ = "secrets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    program_id: Mapped[str] = mapped_column(String(36), ForeignKey("programs.id"), index=True)
+    asset_id: Mapped[str] = mapped_column(String(36), ForeignKey("assets.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(128), index=True)
+    value: Mapped[str] = mapped_column(Text)
+    context: Mapped[str] = mapped_column(String(4096), default="")
+    location: Mapped[str] = mapped_column(String(2048), default="")
+    entropy: Mapped[float] = mapped_column(Float, default=0.0)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
+class SnapshotORM(Base):
+    __tablename__ = "snapshots"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    program_id: Mapped[str] = mapped_column(String(36), ForeignKey("programs.id"), index=True)
+    entity_type: Mapped[str] = mapped_column(String(64), index=True)
+    entity_id: Mapped[str] = mapped_column(String(36), index=True)
+    label: Mapped[str] = mapped_column(String(512), default="")
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    checksum: Mapped[str] = mapped_column(String(512), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
+class ScheduledJobORM(Base):
+    __tablename__ = "scheduled_jobs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    program_id: Mapped[str] = mapped_column(String(36), ForeignKey("programs.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    workflow: Mapped[str] = mapped_column(String(64), index=True)
+    interval_seconds: Mapped[int] = mapped_column(Integer, default=86400)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_status: Mapped[str] = mapped_column(String(32), default="")
+    run_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
 __all__ = [
     "Base",
     "ProgramORM",
@@ -181,4 +281,10 @@ __all__ = [
     "TechnologyORM",
     "FindingORM",
     "ReportORM",
+    "PortORM",
+    "ParameterORM",
+    "AssetFileORM",
+    "SecretORM",
+    "SnapshotORM",
+    "ScheduledJobORM",
 ]

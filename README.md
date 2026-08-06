@@ -85,9 +85,22 @@ $ aegisrecon recon run Acme
 | `aegisrecon init` | Create state directory, schema, defaults |
 | `aegisrecon program create/list/show` | Manage engagement programs |
 | `aegisrecon scope add/list/remove` | Authorize in/out-of-scope rules |
-| `aegisrecon recon run` | Passive discovery + DNS resolution |
+| `aegisrecon recon run` | Passive discovery + DNS resolution (`--resume` resumes an interrupted scan) |
 | `aegisrecon recon ingest <file>` | Import externally-discovered hostnames |
+| `aegisrecon probe run` | Probe assets with `httpx`, extract endpoints + parameters |
+| `aegisrecon harvest js` | Harvest JavaScript files with `katana` |
+| `aegisrecon secrets scan/list` | Detect and review leaked secrets in stored files |
+| `aegisrecon ports scan` | Discover open ports with `naabu` |
+| `aegisrecon screenshot run` | Capture screenshots of live endpoints |
+| `aegisrecon monitor run` | Snapshot state and detect changes over time |
+| `aegisrecon schedule add/list/run` | Manage recurring scheduled workflows |
+| `aegisrecon notify list/test` | Deliver notifications (Slack, Discord, console) |
+| `aegisrecon asset list` | List discovered assets (`--show-aliases`) |
+| `aegisrecon asset alias add` | Bind a variant hostname as an alias of a canonical asset |
+| `aegisrecon asset dedup` | Merge duplicate assets, reparent child records |
+| `aegisrecon finding list/set-status` | Query and triage findings |
 | `aegisrecon report json` | Versioned JSON engagement report |
+| `aegisrecon report markdown` | Human-readable executive Markdown report |
 | `aegisrecon config show` | Print effective configuration |
 
 Every command supports `--data-dir` to override state location and `--debug`/`-v`.
@@ -116,9 +129,9 @@ See [docs/architecture/overview.md](docs/architecture/overview.md) and
 
 ## Roadmap
 
-Programs → scope → assets are live today. Up next: endpoint discovery,
-technology fingerprinting, secret detection, historical change tracking,
-scheduling, AI-assisted triage, a dashboard, and a REST API. See
+Foundation, attack-surface intelligence, monitoring and automation are live
+today. Up next: asset deduplication/aliasing, resumable checkpointed scans,
+AI-assisted triage (never verdicts), a dashboard, and a REST API. See
 [ROADMAP.md](ROADMAP.md).
 
 ## Contributing

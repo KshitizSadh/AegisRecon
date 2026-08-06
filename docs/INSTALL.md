@@ -46,16 +46,27 @@ pytest -k "scope or recon"   # filter by keyword
 
 All tests are offline — external calls (crt.sh, DNS, httpx) are mocked — so the suite runs anywhere.
 
-## 4. Install ProjectDiscovery tools (optional, for active HTTP probing)
+## 4. Install ProjectDiscovery tools (optional, for active probing)
 
 ```bash
 go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
 go install -v github.com/projectdiscovery/subfinder/cmd/subfinder@latest
+go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
+go install -v github.com/projectdiscovery/katana/cmd/katana@latest
 
 # Add Go's bin directory to PATH
 export PATH="$PATH:$HOME/go/bin"
 echo 'export PATH="$PATH:$HOME/go/bin"' >> ~/.bashrc
 ```
+
+Each tool is optional and maps to one command group:
+
+| Tool | Used by | Missing binary message |
+| --- | --- | --- |
+| `httpx` | `probe run` | `AEGISRECON_HTTPX_BIN` |
+| `subfinder` | `recon run --source subfinder` | `AEGISRECON_SUBFINDER_BIN` |
+| `naabu` | `ports scan` | `AEGISRECON_NAABU_BIN` |
+| `katana` | `harvest js` | `AEGISRECON_KATANA_BIN` |
 
 AegisRecon discovers these binaries automatically via `PATH`, or you can point at them explicitly:
 
@@ -74,6 +85,15 @@ aegisrecon init
 aegisrecon program create "My Lab" --org "me" --description "authorized testing only"
 aegisrecon scope add "My Lab" example.com --wildcard
 aegisrecon recon run "My Lab" --debug
+aegisrecon probe run "My Lab"
+aegisrecon harvest js "My Lab"
+aegisrecon secrets scan "My Lab"
+aegisrecon ports scan "My Lab"
+aegisrecon monitor run "My Lab"
+aegisrecon schedule add "My Lab" nightly monitor --every 24
+aegisrecon schedule run
+aegisrecon finding list "My Lab"
+aegisrecon report markdown "My Lab"
 aegisrecon report json "My Lab"
 aegisrecon config show
 ```
@@ -89,6 +109,7 @@ Expected flow:
 | Symptom | Fix |
 | --- | --- |
 | `External tool 'httpx' was not found` | `go install .../httpx@latest` or set `AEGISRECON_HTTPX_BIN`. |
+| `naabu` / `katana` not found | Install them (see step 4) or set `AEGISRECON_NAABU_BIN` / `AEGISRECON_KATANA_BIN`. |
 | `command not found: aegisrecon` | Activate the venv: `source .venv/bin/activate`, or run `python -m aegisrecon`. |
 | `externally-managed-environment` error | You skipped the venv; use `python3 -m venv .venv`. |
 | DNS timeouts in `recon run` | Ensure outbound UDP/53 works; increase concurrency via `--dns-concurrency`. |

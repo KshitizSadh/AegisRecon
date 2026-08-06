@@ -69,6 +69,12 @@ class AegisSettings(BaseSettings):
     subfinder_bin: str = Field(
         default="subfinder", description="Path or name of the ProjectDiscovery subfinder binary"
     )
+    naabu_bin: str = Field(
+        default="naabu", description="Path or name of the ProjectDiscovery naabu binary"
+    )
+    katana_bin: str = Field(
+        default="katana", description="Path or name of the ProjectDiscovery katana binary"
+    )
     use_external_httpx: bool = Field(
         default=True,
         description="Shell out to ProjectDiscovery httpx for HTTP probing",
@@ -101,6 +107,10 @@ class AegisSettings(BaseSettings):
     report_dir: str = Field(
         default="reports", description="Directory for generated reports (relative to data_dir)"
     )
+    screenshot_dir: str = Field(
+        default="screenshots",
+        description="Directory for captured screenshots (relative to data_dir)",
+    )
 
     # --- Derived helpers ----------------------------------------------------
     @property
@@ -114,6 +124,11 @@ class AegisSettings(BaseSettings):
     def reports_path(self) -> Path:
         """Resolve the reports output directory."""
         return self.data_dir / self.report_dir
+
+    @property
+    def screenshots_path(self) -> Path:
+        """Resolve the screenshots output directory."""
+        return self.data_dir / self.screenshot_dir
 
     @field_validator("data_dir")
     @classmethod

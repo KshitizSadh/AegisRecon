@@ -16,32 +16,32 @@ Legend: 🟢 done · 🟡 in progress · ⚪ planned
 - 🟢 Parallel DNS resolution
 - 🟢 JSON reporting
 - 🟢 Rich/Typer CLI
-- 🟡 ProjectDiscovery `httpx` probing → endpoint + tech ingestion
-- ⚪ `subfinder` passive enumeration integration
-- ⚪ Asset `get`/`list` CLI commands with filters
+- 🟢 ProjectDiscovery `httpx` probing → endpoint + tech + parameter ingestion
+- 🟢 `subfinder` passive enumeration integration
+- 🟢 Asset `list` CLI command
 
 ## Phase 2 — Attack-surface intelligence
 
-- ⚪ Endpoint discovery + parameter extraction
-- ⚪ JavaScript file harvesting and secret detection (entropy-based + regex)
-- ⚪ Technology fingerprinting ingestion (from `httpx -tech-detect`)
-- ⚪ Screenshot pipeline (projectdiscovery `katana`/`screenshooter`-style)
-- ⚪ Port discovery integration (projectdiscovery `naabu`)
-- ⚪ Asset deduplication, aliasing and canonical-name resolution
+- 🟢 Endpoint discovery + parameter extraction
+- 🟢 JavaScript file harvesting and secret detection (entropy-based + regex)
+- 🟢 Technology fingerprinting ingestion (from `httpx -tech-detect`)
+- 🟢 Screenshot pipeline (`httpx -screenshot` capture)
+- 🟢 Port discovery integration (projectdiscovery `naabu`)
+- 🟡 Asset deduplication, aliasing and canonical-name resolution
 
 ## Phase 3 — Monitoring & automation
 
-- ⚪ Change detection / diff scanning across assets and endpoints
-- ⚪ Historical tracking and asset timelines
-- ⚪ Scheduled runs (cron / internal scheduler)
-- ⚪ Notifications (Slack, Discord, email) via `Notifier` plugins
-- ⚪ Resumable, checkpointed scans
+- 🟢 Change detection / diff scanning across assets and endpoints
+- 🟢 Historical tracking (snapshots + `snapshot`/`history` queries)
+- 🟢 Scheduled runs (`schedule add` / `schedule run`, cron-friendly)
+- 🟢 Notifications (Slack, Discord, console) via `Notifier` plugins
+- 🟡 Resumable, checkpointed scans
 
 ## Phase 4 — Analysis & AI assistance
 
-- ⚪ Finding prioritization and triage queue
+- 🟢 Finding triage queue (`finding list` / `finding set-status`)
+- 🟢 Executive summaries and report templating (`report markdown`)
 - ⚪ AI-assisted triage (severity estimation, dedup, grouping) — never verdicts
-- ⚪ Executive summaries and report templating
 - ⚪ Context-aware suggestions for manual testing
 
 ## Phase 5 — Platform
@@ -50,7 +50,7 @@ Legend: 🟢 done · 🟡 in progress · ⚪ planned
 - ⚪ Dashboard (attack-surface graph, tech breakdown, timelines, dark mode)
 - ⚪ Team collaboration (shared programs, roles)
 - ⚪ Plugin registry / install flow
-- ⚪ Packaging: Docker, docker-compose, DevContainer
+- 🟢 Packaging: Docker, docker-compose, DevContainer
 
 ## Always
 

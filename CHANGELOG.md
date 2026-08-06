@@ -7,26 +7,39 @@ All notable changes to AegisRecon are documented here. This project follows
 ## [Unreleased]
 
 ### Added
-- Initial project scaffolding: `pyproject.toml`, package layout, `Makefile`,
-  `.gitignore`.
-- Domain model layer (Pydantic): Program, ScopeEntry, Asset, DnsRecord,
-  IpRecord, Endpoint, Technology, Finding, Report.
-- Configuration layer (`AegisSettings`) with environment-variable overrides.
-- SQLite persistence via SQLAlchemy: full ORM schema, session management,
-  repository layer with generic CRUD and domain-specific queries.
-- Scope validator with exact / wildcard / regex rules and deny-by-default
-  enforcement.
-- Recon engine: passive Certificate Transparency discovery (crt.sh) with
-  retry/backoff, parallel DNS resolution, scope-filtered persistence.
-- ProjectDiscovery `httpx` integration for HTTP probing with JSONL parsing.
-- Versioned JSON report generator.
-- Rich/Typer CLI: `init`, `program`, `scope`, `recon`, `report`, `config`.
-- Plugin base classes: `Plugin`, `ReconProvider`, `Scanner`, `Notifier`, `Exporter`.
-- Utility modules: validation helpers, redacting logger, retry decorator,
-  safe filesystem helpers.
-- Test suite (107 tests) with mocked external dependencies and coverage config.
-- Documentation: README, ARCHITECTURE, INSTALL (Kali-focused), CONTRIBUTING,
-  SECURITY, CODE_OF_CONDUCT, ROADMAP.
+- **New domain entities**: `Port`, `Parameter`, `AssetFile`, `Secret`, `Snapshot`
+  (Pydantic models, ORM tables, and repositories with `exists` / `latest` /
+  `history`, plus program-scoped joins for endpoints and asset files).
+- **Secret detection engine** (`engines/secrets.py`): pure, side-effect-free
+  regex + Shannon-entropy detector with a blocklist of known placeholder values.
+- **Secret scan engine** (`engines/secretscan.py`): runs the detector over
+  harvested files and persists conservative, unverified `Secret` records.
+- **HTTP probing engine** (`engines/probe.py`): wraps ProjectDiscovery `httpx`
+  and persists endpoints, technologies and query parameters, scope-gated.
+- **Port scanner** (`engines/naabu.py`): wraps ProjectDiscovery `naabu`,
+  parses JSON output, persists open ports for in-scope assets.
+- **JavaScript harvester** (`engines/js.py`): wraps `katana` + follows with
+  httpx to download, hash and store JS files for secret scanning.
+- **Subfinder provider** (`engines/subfinder.py`): passive subdomain
+  enumeration wired into the recon passive-source registry.
+- **Monitoring engine** (`engines/monitor.py`): immutable snapshots +
+  field-level change detection surfaced as lifecycle findings.
+- **Screenshot engine** (`engines/screenshot.py`): captures renders of live
+  endpoints via `httpx -screenshot`, stores PNGs on disk, records `AssetFile`
+  (kind `screenshot`) entries; `AssetFile` gains an optional on-disk `path`.
+- **Scheduler** (`scheduler.py`): persistent `ScheduledJob` definitions
+  (workflow + interval) with due-based execution driven by `schedule run`.
+- **Markdown executive report** (`reporting/markdown_report.py`): human-readable
+  engagement summary with executive snapshot and open-finding backlog.
+- **Notification plugins** (`notify.py`): console, Slack and Discord notifiers
+  behind a `Notifier`-based dispatcher that isolates per-channel failures.
+- **New CLI groups**: `probe run`, `harvest js`, `secrets scan`/`list`,
+  `ports scan`, `monitor run`, `screenshot run`, `asset list`,
+  `finding list`/`set-status`, `notify list`/`test`, `schedule add`/`list`/`run`,
+  `report markdown`. `recon run` now supports `subfinder` as a passive source.
+- Config keys `naabu_bin`, `katana_bin` and `screenshot_dir`.
+- Expanded test suite (165 tests) covering the new engines, notifiers, reports
+  and scheduler.
 
 ## [0.1.0] - 2026-08-05
 - First working end-to-end pipeline: init → program → scope → recon → report.

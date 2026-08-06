@@ -14,16 +14,30 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 from rich.table import Table
 
 from aegisrecon.cli import load_database, load_settings
-from aegisrecon.core.models import Program, ScopeAction, ScopeEntry, ScopeKind
+from aegisrecon.core.models import Program, ScheduledJob, ScopeAction, ScopeEntry, ScopeKind
 from aegisrecon.core.repositories import (
     AssetRepository,
     FindingRepository,
     ProgramRepository,
+    ScheduledJobRepository,
     ScopeRepository,
 )
+from aegisrecon.engines.js import JsHarvestEngine
+from aegisrecon.engines.monitor import MonitorEngine
+from aegisrecon.engines.naabu import PortEngine
+from aegisrecon.engines.probe import ProbeEngine
 from aegisrecon.engines.recon import ReconEngine
+from aegisrecon.engines.screenshot import ScreenshotEngine
+from aegisrecon.engines.secretscan import SecretEngine
 from aegisrecon.exceptions import EntityNotFoundError
+from aegisrecon.notify import (
+    ConsoleNotifier,
+    NotifierDispatcher,
+    available_notifiers,
+)
 from aegisrecon.reporting.json_report import generate_json_report
+from aegisrecon.reporting.markdown_report import generate_markdown_report
+from aegisrecon.scheduler import VALID_WORKFLOWS, Scheduler
 from aegisrecon.utils.console import console
 from aegisrecon.utils.validators import is_valid_hostname, normalize_hostname, normalize_list
 
@@ -31,6 +45,16 @@ program_group = typer.Typer(help="Manage engagement programs.")
 scope_group = typer.Typer(help="Manage program scope rules.")
 report_group = typer.Typer(help="Generate engagement reports.")
 config_group = typer.Typer(help="Inspect runtime configuration.")
+probe_group = typer.Typer(help="Probe assets for live endpoints.")
+harvest_group = typer.Typer(help="Harvest and store JavaScript files.")
+secrets_group = typer.Typer(help="Detect and manage leaked secrets.")
+ports_group = typer.Typer(help="Discover open ports on assets.")
+screenshot_group = typer.Typer(help="Capture screenshots of live endpoints.")
+monitor_group = typer.Typer(help="Snapshot state and detect changes over time.")
+notify_group = typer.Typer(help="Deliver notifications to external channels.")
+asset_group = typer.Typer(help="List and inspect discovered assets.")
+finding_group = typer.Typer(help="Query and triage findings.")
+schedule_group = typer.Typer(help="Manage recurring scheduled workflows.")
 
 
 # --------------------------------------------------------------------------- #
@@ -336,6 +360,409 @@ def report_json(
     console.print(f"[green]Report generated:[/] [cyan]{report.path}[/]")
 
 
+@report_group.command("markdown")
+def report_markdown(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    title: str | None = typer.Option(None, "--title", help="Report title."),
+) -> None:
+    """Generate a Markdown executive summary for a program."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    report = generate_markdown_report(db, found.id, settings.reports_path, title=title)
+    console.print(f"[green]Markdown report generated:[/] [cyan]{report.path}[/]")
+
+
+# --------------------------------------------------------------------------- #
+# `probe` group
+# --------------------------------------------------------------------------- #
+@probe_group.command("run")
+def probe_run(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+) -> None:
+    """Probe a program's assets for live endpoints, tech and parameters."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    result = ProbeEngine(db, binary=settings.httpx_bin).run(found.id)
+    console.print(
+        Panel.fit(
+            f"[bold]Probe complete[/]\n"
+            f"  Probed              : {result.probed}\n"
+            f"  Endpoints           : {result.endpoints} ({result.new_endpoints} new)\n"
+            f"  Technologies        : {result.technologies}\n"
+            f"  Parameters          : {result.parameters}"
+            + (f"\n  Out-of-scope skipped: {len(result.errors)}" if result.errors else ""),
+            title=f"Probe: {found.name}",
+        )
+    )
+
+
+# --------------------------------------------------------------------------- #
+# `harvest` group
+# --------------------------------------------------------------------------- #
+@harvest_group.command("js")
+def harvest_js(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+) -> None:
+    """Discover and download JavaScript files for a program's assets."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    result = JsHarvestEngine(db, binary=settings.katana_bin).run(found.id)
+    console.print(
+        Panel.fit(
+            f"[bold]JavaScript harvest complete[/]\n"
+            f"  Candidates   : {result.candidates}\n"
+            f"  Downloaded   : {result.fetched}\n"
+            f"  New files    : {result.new_files}\n"
+            f"  Unchanged    : {result.unchanged}\n"
+            f"  Out of scope : {len(result.errors)}",
+            title=f"JS Harvest: {found.name}",
+        )
+    )
+
+
+# --------------------------------------------------------------------------- #
+# `secrets` group
+# --------------------------------------------------------------------------- #
+@secrets_group.command("scan")
+def secrets_scan(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    min_entropy: float = typer.Option(0.0, "--min-entropy", help="Extra entropy floor (0 disables)."),
+) -> None:
+    """Scan harvested files for likely leaked secrets."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    result = SecretEngine(db, min_entropy=min_entropy).run(found.id)
+    kind_summary = ", ".join(f"{k}: {v}" for k, v in sorted(result.by_kind.items())) or "none"
+    console.print(
+        Panel.fit(
+            f"[bold]Secret scan complete[/]\n"
+            f"  Files checked : {result.files_checked}\n"
+            f"  Candidates    : {result.candidates}\n"
+            f"  New secrets   : {result.new_secrets}\n"
+            f"  By kind       : {kind_summary}",
+            title=f"Secrets: {found.name}",
+        )
+    )
+
+
+@secrets_group.command("list")
+def secrets_list(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+) -> None:
+    """List stored secret candidates for a program."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    from aegisrecon.core.repositories import SecretRepository
+
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        rows = [
+            [s.kind, s.value, s.location, f"{s.entropy:.2f}", "verified" if s.is_verified else "candidate"]
+            for s in SecretRepository(session).list(program_id=found.id)
+        ]
+        session.close()
+    if not rows:
+        console.print(f"[yellow]No secrets recorded for {found.name}.[/]")
+        return
+    _render_table(f"Secrets: {found.name}", ["Kind", "Value", "Location", "Entropy", "Status"], rows)
+
+
+# --------------------------------------------------------------------------- #
+# `ports` group
+# --------------------------------------------------------------------------- #
+@ports_group.command("scan")
+def ports_scan(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    ports: str = typer.Option("", "--ports", help="Comma-separated ports to probe."),
+) -> None:
+    """Discover open ports on a program's in-scope assets."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    engine = PortEngine(db, binary=settings.naabu_bin, ports=ports) if ports else PortEngine(db, binary=settings.naabu_bin)
+    result = engine.run(found.id)
+    console.print(
+        Panel.fit(
+            f"[bold]Port scan complete[/]\n"
+            f"  Hosts scanned : {result.hosts}\n"
+            f"  Open ports    : {result.open_ports}\n"
+            f"  New ports     : {result.new_ports}\n"
+            f"  Out of scope  : {len(result.errors)}",
+            title=f"Ports: {found.name}",
+        )
+    )
+
+
+# --------------------------------------------------------------------------- #
+# `screenshot` group
+# --------------------------------------------------------------------------- #
+@screenshot_group.command("run")
+def screenshot_run(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+) -> None:
+    """Capture screenshots of a program's live endpoints."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    settings.screenshots_path.mkdir(parents=True, exist_ok=True)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    engine = ScreenshotEngine(db, binary=settings.httpx_bin, output_root=settings.screenshots_path)
+    result = engine.run(found.id)
+    console.print(
+        Panel.fit(
+            f"[bold]Screenshot pass complete[/]\n"
+            f"  Endpoints attempted : {result.endpoints_attempted}\n"
+            f"  New screenshots     : {result.new_files}\n"
+            f"  Skipped (duplicate) : {result.skipped}\n"
+            f"  Stored under        : {settings.screenshots_path}"
+            + (f"\n  Errors              : {len(result.errors)}" if result.errors else ""),
+            title=f"Screenshots: {found.name}",
+        )
+    )
+
+
+# --------------------------------------------------------------------------- #
+# `monitor` group
+# --------------------------------------------------------------------------- #
+@monitor_group.command("run")
+def monitor_run(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+) -> None:
+    """Capture a snapshot and report changes against the previous one."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    result = MonitorEngine(db).run(found.id)
+    console.print(
+        Panel.fit(
+            f"[bold]Monitoring pass complete[/]\n"
+            f"  Endpoints seen : {result.endpoints_seen}\n"
+            f"  Changes        : {result.changes}\n"
+            f"  Findings       : {result.findings_created}",
+            title=f"Monitor: {found.name}",
+        )
+    )
+
+
+# --------------------------------------------------------------------------- #
+# `asset` group
+# --------------------------------------------------------------------------- #
+@asset_group.command("list")
+def asset_list(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+) -> None:
+    """List all assets belonging to a program."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        assets = AssetRepository(session).list(program_id=found.id)
+        rows = [
+            [
+                a.name,
+                a.kind.value,
+                a.source,
+                a.last_seen_at.isoformat() if a.last_seen_at else "",
+            ]
+            for a in assets
+        ]
+        session.close()
+    if not rows:
+        console.print(f"[yellow]No assets for {found.name}. Run `aegisrecon recon run` first.[/]")
+        return
+    _render_table(f"Assets: {found.name}", ["Name", "Kind", "Source", "Last seen"], rows)
+
+
+# --------------------------------------------------------------------------- #
+# `finding` group
+# --------------------------------------------------------------------------- #
+@finding_group.command("list")
+def finding_list(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    status: str | None = typer.Option(None, "--status", help="Filter by lifecycle status."),
+) -> None:
+    """List findings for a program, optionally filtered by status."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    from aegisrecon.core.repositories import FindingRepository
+
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        rows = [
+            [f.severity.value.upper(), f.status.value, f.title]
+            for f in FindingRepository(session).list(program_id=found.id, status=status)
+        ]
+        session.close()
+    if not rows:
+        console.print(f"[yellow]No findings for {found.name}.[/]")
+        return
+    _render_table(f"Findings: {found.name}", ["Severity", "Status", "Title"], rows)
+
+
+@finding_group.command("set-status")
+def finding_status_update(
+    ctx: typer.Context,
+    finding_id: str = typer.Argument(..., help="Finding id."),
+    status: str = typer.Argument(..., help="New status: open|triaged|accepted|false_positive|fixed."),
+) -> None:
+    """Update the lifecycle status of a finding."""
+    from aegisrecon.core.models import FindingStatus
+
+    settings = load_settings(ctx)
+    db = load_database(settings)
+
+    try:
+        new_status = FindingStatus(status.lower())
+    except ValueError:
+        valid = ", ".join(s.value for s in FindingStatus)
+        raise typer.BadParameter(f"invalid status {status!r}. Use one of: {valid}") from None
+
+    with db.session() as session:
+        repo = FindingRepository(session)
+        try:
+            updated = repo.update(finding_id, status=new_status)
+        except EntityNotFoundError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        session.commit()
+        session.close()
+    console.print(f"[green]Updated[/] finding {updated.id} to status [cyan]{new_status.value}[/]")
+
+
+# --------------------------------------------------------------------------- #
+# `notify` group
+# --------------------------------------------------------------------------- #
+@notify_group.command("list")
+def notify_list() -> None:
+    """List built-in notifier plugins."""
+    _render_table("Notifiers", ["Name"], [[name] for name in available_notifiers()])
+
+
+@notify_group.command("test")
+def notify_test(
+    ctx: typer.Context,
+    message: str = typer.Argument("AegisRecon test notification", help="Message to send."),
+) -> None:
+    """Send a test notification to the console channel."""
+    dispatcher = NotifierDispatcher([ConsoleNotifier()])
+    results = dispatcher.dispatch({"title": "Test", "program": "local", "message": message})
+    console.print(f"[green]Dispatcher result:[/] {results}")
+
+
+# --------------------------------------------------------------------------- #
+# `schedule` group
+# --------------------------------------------------------------------------- #
+@schedule_group.command("add")
+def schedule_add(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    name: str = typer.Argument(..., help="Unique job name."),
+    workflow: str = typer.Argument(..., help="Workflow: probe|monitor|secrets|ports|harvest."),
+    interval_hours: int = typer.Option(24, "--every", min=1, help="Run interval in hours."),
+) -> None:
+    """Register a recurring workflow for a program."""
+    if workflow.lower() not in VALID_WORKFLOWS:
+        raise typer.BadParameter(
+            f"invalid workflow {workflow!r}; use one of: {', '.join(VALID_WORKFLOWS)}"
+        )
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        repo = ScheduledJobRepository(session)
+        if repo.get_by_name(found.id, name) is not None:
+            raise typer.BadParameter(f"a job named {name!r} already exists for {found.name}")
+        job = ScheduledJob(
+            program_id=found.id,
+            name=name,
+            workflow=workflow.lower(),
+            interval_seconds=interval_hours * 3600,
+        )
+        repo.create(job)
+        session.commit()
+        console.print(
+            f"[green]Scheduled[/] workflow [cyan]{job.workflow}[/] every {interval_hours}h "
+            f"for {found.name} (job: {job.name})"
+        )
+
+
+@schedule_group.command("list")
+def schedule_list(ctx: typer.Context) -> None:
+    """List all scheduled jobs."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        jobs = ScheduledJobRepository(session).list()
+        session.close()
+    if not jobs:
+        console.print("[yellow]No scheduled jobs. Add one with `aegisrecon schedule add`.[/]")
+        return
+    rows = [
+        [
+            job.name,
+            job.workflow,
+            f"{job.interval_seconds // 3600}h",
+            "yes" if job.enabled else "no",
+            str(job.run_count),
+            job.last_status or "-",
+            job.last_run_at.isoformat() if job.last_run_at else "-",
+        ]
+        for job in jobs
+    ]
+    _render_table("Scheduled jobs", ["Name", "Workflow", "Interval", "Enabled", "Runs", "Status", "Last run"], rows)
+
+
+@schedule_group.command("run")
+def schedule_run(ctx: typer.Context) -> None:
+    """Run every scheduled job that is currently due."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    report = Scheduler(db).run_due()
+    if report.jobs_due == 0:
+        console.print("[yellow]No scheduled jobs are due right now.[/]")
+        return
+    console.print(
+        Panel.fit(
+            f"[bold]Scheduler sweep complete[/]\n"
+            f"  Evaluated : {report.jobs_evaluated}\n"
+            f"  Due       : {report.jobs_due}\n"
+            f"  Completed : {report.completed}"
+            + (f"\n  Failed    : {len(report.failed)}" if report.failed else ""),
+            title="Schedule",
+        )
+    )
+    for name, detail in report.results.items():
+        console.print(f"[cyan]{name}[/]: {detail} ok")
+    for name, error in report.failed.items():
+        console.print(f"[red]{name}[/]: {error}")
+
+
 # --------------------------------------------------------------------------- #
 # `config` group
 # --------------------------------------------------------------------------- #
@@ -348,6 +775,7 @@ def config_show(ctx: typer.Context) -> None:
         ["Data directory", str(settings.data_dir)],
         ["Database", str(settings.database_path)],
         ["Reports directory", str(settings.reports_path)],
+        ["Screenshots directory", str(settings.screenshots_path)],
         ["Concurrency", str(settings.concurrency)],
         ["DNS concurrency", str(settings.dns_concurrency)],
         ["Timeout (s)", str(settings.timeout_seconds)],
@@ -355,8 +783,27 @@ def config_show(ctx: typer.Context) -> None:
         ["CT logs enabled", "yes" if settings.enable_ct_logs else "no"],
         ["Scope enforcement", "on" if settings.require_scope else "off"],
         ["httpx binary", settings.httpx_bin],
+        ["subfinder binary", settings.subfinder_bin],
+        ["naabu binary", settings.naabu_bin],
+        ["katana binary", settings.katana_bin],
     ]
     _render_table("Configuration", ["Setting", "Value"], rows)
 
 
-__all__ = ["program_group", "scope_group", "recon_group", "report_group", "config_group"]
+__all__ = [
+    "program_group",
+    "scope_group",
+    "recon_group",
+    "report_group",
+    "config_group",
+    "probe_group",
+    "harvest_group",
+    "secrets_group",
+    "ports_group",
+    "screenshot_group",
+    "monitor_group",
+    "asset_group",
+    "finding_group",
+    "notify_group",
+    "schedule_group",
+]

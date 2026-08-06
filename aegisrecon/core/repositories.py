@@ -14,26 +14,38 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from aegisrecon.core.db_models import (
+    AssetFileORM,
     AssetORM,
     Base,
     DnsRecordORM,
     EndpointORM,
     FindingORM,
     IpRecordORM,
+    ParameterORM,
+    PortORM,
     ProgramORM,
     ReportORM,
+    ScheduledJobORM,
     ScopeEntryORM,
+    SecretORM,
+    SnapshotORM,
     TechnologyORM,
 )
 from aegisrecon.core.models import (
     Asset,
+    AssetFile,
     DnsRecord,
     Endpoint,
     Finding,
     IpRecord,
+    Parameter,
+    Port,
     Program,
     Report,
+    ScheduledJob,
     ScopeEntry,
+    Secret,
+    Snapshot,
     Technology,
     utcnow,
 )
@@ -48,6 +60,17 @@ def _iso(value: Any) -> Any:
     """Serialize a datetime into ISO 8601 string for Pydantic consumption."""
     if hasattr(value, "isoformat"):
         return value.isoformat()
+    return value
+
+
+def _as_utc(value):
+    """Normalize a possibly-naive datetime to an aware UTC datetime."""
+    from datetime import timezone
+
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
     return value
 
 
@@ -199,6 +222,15 @@ class EndpointRepository(BaseRepository[Endpoint, EndpointORM]):
         )
         return self.session.scalar(stmt) is not None
 
+    def list_for_program(self, program_id: str) -> list[Endpoint]:
+        stmt = (
+            select(EndpointORM)
+            .join(AssetORM, AssetORM.id == EndpointORM.asset_id)
+            .where(AssetORM.program_id == program_id)
+        )
+        rows = self.session.scalars(stmt).all()
+        return [self._to_domain(row) for row in rows]
+
 
 class TechnologyRepository(BaseRepository[Technology, TechnologyORM]):
     orm = TechnologyORM
@@ -222,6 +254,129 @@ class ReportRepository(BaseRepository[Report, ReportORM]):
     domain = Report
 
 
+class PortRepository(BaseRepository[Port, PortORM]):
+    orm = PortORM
+    domain = Port
+
+    def exists(self, asset_id: str, port: int, protocol: str = "tcp") -> bool:
+        stmt = select(PortORM.id).where(
+            PortORM.asset_id == asset_id,
+            PortORM.port == port,
+            PortORM.protocol == protocol,
+        )
+        return self.session.scalar(stmt) is not None
+
+
+class ParameterRepository(BaseRepository[Parameter, ParameterORM]):
+    orm = ParameterORM
+    domain = Parameter
+
+    def exists(self, endpoint_id: str, name: str) -> bool:
+        stmt = select(ParameterORM.id).where(
+            ParameterORM.endpoint_id == endpoint_id,
+            ParameterORM.name == name,
+        )
+        return self.session.scalar(stmt) is not None
+
+
+class AssetFileRepository(BaseRepository[AssetFile, AssetFileORM]):
+    orm = AssetFileORM
+    domain = AssetFile
+
+    def get_by_url(self, asset_id: str, url: str) -> AssetFile | None:
+        row = self.session.scalars(
+            select(AssetFileORM).where(AssetFileORM.asset_id == asset_id, AssetFileORM.url == url)
+        ).first()
+        return self._to_domain(row) if row else None
+
+    def get_by_path(self, asset_id: str, path: str) -> AssetFile | None:
+        row = self.session.scalars(
+            select(AssetFileORM).where(AssetFileORM.asset_id == asset_id, AssetFileORM.path == path)
+        ).first()
+        return self._to_domain(row) if row else None
+
+    def list_for_program(self, program_id: str) -> list[AssetFile]:
+        stmt = (
+            select(AssetFileORM)
+            .join(AssetORM, AssetORM.id == AssetFileORM.asset_id)
+            .where(AssetORM.program_id == program_id)
+        )
+        rows = self.session.scalars(stmt).all()
+        return [self._to_domain(row) for row in rows]
+
+
+class SecretRepository(BaseRepository[Secret, SecretORM]):
+    orm = SecretORM
+    domain = Secret
+
+    def exists(self, program_id: str, asset_id: str, kind: str, value: str) -> bool:
+        stmt = select(SecretORM.id).where(
+            SecretORM.program_id == program_id,
+            SecretORM.asset_id == asset_id,
+            SecretORM.kind == kind,
+            SecretORM.value == value,
+        )
+        return self.session.scalar(stmt) is not None
+
+
+class SnapshotRepository(BaseRepository[Snapshot, SnapshotORM]):
+    orm = SnapshotORM
+    domain = Snapshot
+
+    def latest(self, entity_type: str, entity_id: str) -> Snapshot | None:
+        stmt = (
+            select(SnapshotORM)
+            .where(SnapshotORM.entity_type == entity_type, SnapshotORM.entity_id == entity_id)
+            .order_by(SnapshotORM.created_at.desc())
+        )
+        row = self.session.scalars(stmt).first()
+        return self._to_domain(row) if row else None
+
+    def history(self, entity_type: str, entity_id: str, limit: int = 50) -> list[Snapshot]:
+        stmt = (
+            select(SnapshotORM)
+            .where(SnapshotORM.entity_type == entity_type, SnapshotORM.entity_id == entity_id)
+            .order_by(SnapshotORM.created_at.desc())
+            .limit(limit)
+        )
+        rows = self.session.scalars(stmt).all()
+        return [self._to_domain(row) for row in rows]
+
+
+class ScheduledJobRepository(BaseRepository[ScheduledJob, ScheduledJobORM]):
+    orm = ScheduledJobORM
+    domain = ScheduledJob
+
+    def get_by_name(self, program_id: str, name: str) -> ScheduledJob | None:
+        row = self.session.scalars(
+            select(ScheduledJobORM).where(
+                ScheduledJobORM.program_id == program_id, ScheduledJobORM.name == name
+            )
+        ).first()
+        return self._to_domain(row) if row else None
+
+    def list_enabled_due(self, now) -> list[ScheduledJob]:
+        """Return enabled jobs whose interval has elapsed since their last run."""
+        rows = self.session.scalars(
+            select(ScheduledJobORM).where(ScheduledJobORM.enabled.is_(True))
+        ).all()
+        due: list[ScheduledJob] = []
+        for row in rows:
+            job = self._to_domain(row)
+            last_run = _as_utc(job.last_run_at)
+            elapsed = (now - last_run).total_seconds() if last_run else float("inf")
+            if elapsed >= job.interval_seconds:
+                due.append(job)
+        return due
+
+    def list_enabled(self) -> list[ScheduledJob]:
+        """Return all enabled jobs."""
+        rows = self.session.scalars(
+            select(ScheduledJobORM).where(ScheduledJobORM.enabled.is_(True))
+        ).all()
+        return [self._to_domain(row) for row in rows]
+
+
 __all__ = [
     "BaseRepository",
     "ProgramRepository",
@@ -233,4 +388,10 @@ __all__ = [
     "TechnologyRepository",
     "FindingRepository",
     "ReportRepository",
+    "PortRepository",
+    "ParameterRepository",
+    "AssetFileRepository",
+    "SecretRepository",
+    "SnapshotRepository",
+    "ScheduledJobRepository",
 ]

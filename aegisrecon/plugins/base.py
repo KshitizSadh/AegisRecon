@@ -27,7 +27,7 @@ class Plugin(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def create(cls, **kwargs):
+    def create(cls, **kwargs: object) -> Plugin:
         """Instantiate the plugin with resolved runtime options."""
 
     def __repr__(self) -> str:  # pragma: no cover - cosmetic

@@ -36,13 +36,15 @@ from aegisrecon.core.repositories import (
 from aegisrecon.core.scope import ScopeValidator
 from aegisrecon.engines.dns import DnsResolver
 from aegisrecon.engines.passive import CertificateTransparencyProvider
-from aegisrecon.exceptions import ReconError
+from aegisrecon.engines.subfinder import SubfinderProvider
+from aegisrecon.exceptions import EngineError, ReconError
 from aegisrecon.utils.validators import is_valid_domain
 
 logger = logging.getLogger("aegisrecon.engines.recon")
 
 PASSIVE_SOURCES = {
     "crtsh": CertificateTransparencyProvider,
+    "subfinder": SubfinderProvider,
 }
 
 
@@ -145,7 +147,11 @@ class ReconEngine:
                 f"unknown passive source {source!r}; available: {sorted(PASSIVE_SOURCES)}"
             )
 
-        provider = provider_class.create(timeout=self.ct_timeout)
+        try:
+            provider = provider_class.create(timeout=self.ct_timeout)  # type: ignore[attr-defined]
+        except EngineError as exc:
+            logger.warning("source %s unavailable: %s", source, exc)
+            return set()
         found: set[str] = set()
         try:
             for root in roots:

@@ -55,9 +55,10 @@ layout, data flow, and the interfaces that keep it modular and extensible.
 ```
 aegisrecon/
 ├── cli.py                  # Typer app wiring + shared context
-├── cli_groups.py           # command groups (program/scope/recon/report/config)
+├── cli_groups.py           # command groups (program/scope/recon/report/config/…)
 ├── config.py               # AegisSettings (env-aware, typed)
 ├── exceptions.py           # explicit exception hierarchy
+├── notify.py               # notifier plugins + dispatcher (console/slack/discord)
 ├── core/
 │   ├── models.py           # Pydantic domain models (validate everywhere)
 │   ├── db_models.py        # SQLAlchemy ORM schema
@@ -67,11 +68,21 @@ aegisrecon/
 │   └── __init__.py
 ├── engines/
 │   ├── passive.py          # CT-log subdomain discovery (crt.sh)
+│   ├── subfinder.py        # ProjectDiscovery subfinder passive enumeration
 │   ├── dns.py              # parallel DNS resolution
 │   ├── httpx.py            # ProjectDiscovery httpx integration
+│   ├── probe.py            # HTTP probing: endpoints, tech, parameters
+│   ├── naabu.py            # ProjectDiscovery naabu port scanning
+│   ├── js.py               # katana JS harvesting + download/hash/storage
+│   ├── secrets.py          # pure regex + entropy secret detector
+│   ├── secretscan.py       # secret scan orchestration + persistence
+│   ├── screenshot.py       # httpx -screenshot capture + on-disk storage
+│   ├── monitor.py          # snapshots + change detection → findings
 │   └── recon.py            # recon orchestrator
+├── scheduler.py            # recurring workflow runner (due-based)
 ├── reporting/
-│   └── json_report.py      # versioned JSON report generator
+│   ├── json_report.py      # versioned JSON report generator
+│   └── markdown_report.py  # executive Markdown summary generator
 ├── plugins/
 │   └── base.py             # plugin abstract base classes
 └── utils/
@@ -105,10 +116,22 @@ exclude > include. Used by the recon engine before any persistence or probing.
 
 ### Engines (`engines/`)
 Stateless-ish workers that produce or transform data:
-- `passive.py` — `ReconProvider` returning hostnames.
+- `passive.py` / `subfinder.py` — `ReconProvider`s returning hostnames.
 - `dns.py` — resolves hostnames into `Resolution` records in parallel.
 - `httpx.py` — shells out to ProjectDiscovery `httpx`, parses JSONL.
+- `probe.py` — persists endpoints, technologies and parameters for in-scope assets.
+- `naabu.py` — parses `naabu` JSON output and persists open ports.
+- `js.py` — harvests JS URLs via `katana`, downloads bodies, hashes and stores them.
+- `secrets.py` — pure regex + Shannon-entropy detector (side-effect free).
+- `secretscan.py` — runs the detector over stored files and persists `Secret` records.
+- `screenshot.py` — drives `httpx -screenshot`, moves renders to disk, records them.
+- `monitor.py` — immutable snapshots + field-level diffing surfaced as findings.
 - `recon.py` — orchestrates discovery → filtering → resolution → persistence.
+
+### Scheduler (`scheduler.py`)
+`ScheduledJob` definitions persist in SQLite; `Scheduler.run_due()` executes every
+enabled job whose interval has elapsed, delegating to the appropriate engine and
+recording `last_run_at` / `last_status` / `run_count` on each job.
 
 ### Plugins (`plugins/base.py`)
 Abstract base classes (`Plugin`, `ReconProvider`, `Scanner`, `Notifier`,

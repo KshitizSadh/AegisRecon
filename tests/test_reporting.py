@@ -24,6 +24,7 @@ from aegisrecon.reporting.json_report import (
     build_payload,
     generate_json_report,
 )
+from aegisrecon.reporting.markdown_report import render_markdown
 
 
 def _seed(database, program) -> None:
@@ -78,3 +79,32 @@ def test_generate_writes_file_and_persists_report(database, scoped_program, data
 
     written = json.loads(open(report.path, encoding="utf-8").read())
     assert written["summary"]["total_findings"] == 2
+
+
+def test_render_markdown_contains_snapshot_and_open_findings(database, scoped_program) -> None:
+    _seed(database, scoped_program)
+    payload = build_payload(database, scoped_program.id)
+    text = render_markdown(payload, title="Executive")
+    assert "# Executive" in text
+    assert "## Executive snapshot" in text
+    assert "| Assets | 1 |" in text
+    assert "Reflected XSS" in text
+    assert "HIGH" in text
+    assert "## Scope" in text
+
+
+def test_render_markdown_hides_fixed_findings(database, scoped_program) -> None:
+    _seed(database, scoped_program)
+    with database.session() as session:
+        from aegisrecon.core.models import FindingStatus
+        from aegisrecon.core.repositories import FindingRepository
+
+        findings = FindingRepository(session).list(program_id=scoped_program.id)
+        for finding in findings:
+            FindingRepository(session).update(finding.id, status=FindingStatus.FIXED)
+        session.commit()
+        session.close()
+    payload = build_payload(database, scoped_program.id)
+    text = render_markdown(payload)
+    assert "Reflected XSS" not in text
+    assert "_No open findings." in text
