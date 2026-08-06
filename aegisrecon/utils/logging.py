@@ -16,7 +16,12 @@ _LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s | %(message)s"
 
 # Sensitive patterns redacted from any message before it hits the wire.
 _SECRET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"(api[_-]?key|token|secret|password|passwd|auth)\s*[=:]\s*([^\s&,]+)", re.IGNORECASE), r"\1=***REDACTED***"),
+    (
+        re.compile(
+            r"(api[_-]?key|token|secret|password|passwd|auth)\s*[=:]\s*([^\s&,]+)", re.IGNORECASE
+        ),
+        r"\1=***REDACTED***",
+    ),
     (re.compile(r"(bearer|basic)\s+\S+", re.IGNORECASE), r"\1 ***REDACTED***"),
     (re.compile(r"(?i)https?://([^:\s/@]+):([^@\s/]+)@"), r"https://\1:***REDACTED***@"),
 ]

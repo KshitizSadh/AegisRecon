@@ -61,7 +61,9 @@ def test_settings_prepare_creates_dirs(tmp_path: Path) -> None:
 
 
 def test_settings_rejects_bad_state_file() -> None:
-    with pytest.raises(Exception):
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
         AegisSettings(state_file="notjson.txt")
 
 

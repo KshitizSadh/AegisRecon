@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import fnmatch
 import re
-from typing import Iterator
+from collections.abc import Iterator
 
 from aegisrecon.core.models import ScopeAction, ScopeEntry, ScopeKind
 from aegisrecon.utils.validators import normalize_hostname

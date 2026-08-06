@@ -1,0 +1,17 @@
+services:
+  aegisrecon:
+    build: .
+    image: aegisrecon/aegisrecon:latest
+    container_name: aegisrecon
+    entrypoint: aegisrecon
+    command: ["--help"]
+    volumes:
+      - aegisrecon-data:/var/lib/aegisrecon
+    environment:
+      AEGISRECON_DATA_DIR: /var/lib/aegisrecon
+    # Uncomment to enable interactive CLI sessions / shell access:
+    # stdin_open: true
+    # tty: true
+
+volumes:
+  aegisrecon-data:

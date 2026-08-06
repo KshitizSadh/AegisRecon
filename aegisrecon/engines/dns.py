@@ -55,14 +55,20 @@ class DnsResolver:
         for record_type in _RECORD_TYPES:
             try:
                 answer = dns.resolver.resolve(target, record_type.value, lifetime=self.timeout)
-                values = [str(record.target if record_type == DnsRecordType.CNAME else record.address).rstrip(".").lower()
-                          for record in answer]
+                values = [
+                    str(record.target if record_type == DnsRecordType.CNAME else record.address)
+                    .rstrip(".")
+                    .lower()
+                    for record in answer
+                ]
             except dns.resolver.NoAnswer:
                 values = []
             except (dns.resolver.NXDOMAIN, dns.resolver.NoNameservers) as exc:
                 raise ResolutionError(f"no {record_type.value} record for {target}: {exc}") from exc
             except (dns.exception.Timeout, dns.resolver.LifetimeTimeout) as exc:
-                raise ResolutionError(f"resolution timed out for {target} ({record_type.value}): {exc}") from exc
+                raise ResolutionError(
+                    f"resolution timed out for {target} ({record_type.value}): {exc}"
+                ) from exc
 
             records[record_type.value] = tuple(values)
             if record_type == DnsRecordType.CNAME:
@@ -70,7 +76,9 @@ class DnsResolver:
             else:
                 addresses.extend(values)
 
-        return Resolution(hostname=target, addresses=tuple(sorted(set(addresses))), cname=cname, records=records)
+        return Resolution(
+            hostname=target, addresses=tuple(sorted(set(addresses))), cname=cname, records=records
+        )
 
     def resolve_many(self, hostnames: list[str]) -> dict[str, Resolution]:
         """Resolve many hostnames in parallel.

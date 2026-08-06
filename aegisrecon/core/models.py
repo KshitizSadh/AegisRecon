@@ -12,9 +12,9 @@ import enum
 import uuid
 from datetime import datetime, timezone
 from ipaddress import IPv4Address, IPv6Address, ip_address
-from typing import Any, ClassVar
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def new_uuid() -> str:
@@ -34,7 +34,9 @@ class Resource(BaseModel):
 
     id: str = Field(default_factory=new_uuid, description="Universally unique identifier")
     created_at: datetime = Field(default_factory=utcnow, description="Creation timestamp (UTC)")
-    updated_at: datetime = Field(default_factory=utcnow, description="Last modification timestamp (UTC)")
+    updated_at: datetime = Field(
+        default_factory=utcnow, description="Last modification timestamp (UTC)"
+    )
 
     def touch(self) -> None:
         """Mark the entity as modified at the current time."""
@@ -103,10 +105,14 @@ class Program(Resource):
     """An authorized engagement: the top-level scope container."""
 
     name: str = Field(min_length=1, max_length=255, description="Human readable program name")
-    description: str = Field(default="", max_length=4000, description="Optional program description")
+    description: str = Field(
+        default="", max_length=4000, description="Optional program description"
+    )
     organization: str = Field(default="", max_length=255, description="Owning organization")
     owner: str = Field(default="", max_length=255, description="Responsible researcher/team")
-    tags: list[str] = Field(default_factory=list, description="Free-form tags for grouping/filtering")
+    tags: list[str] = Field(
+        default_factory=list, description="Free-form tags for grouping/filtering"
+    )
     enabled: bool = Field(default=True, description="Whether the program is active")
 
     @field_validator("tags")
@@ -136,8 +142,12 @@ class Asset(Resource):
     program_id: str = Field(description="Owning program identifier")
     name: str = Field(min_length=1, max_length=2048, description="Canonical asset name")
     kind: AssetKind = Field(default=AssetKind.HOSTNAME, description="Classification of the asset")
-    source: str = Field(default="manual", max_length=255, description="Where the asset was discovered from")
-    last_seen_at: datetime = Field(default_factory=utcnow, description="Last time the asset was observed")
+    source: str = Field(
+        default="manual", max_length=255, description="Where the asset was discovered from"
+    )
+    last_seen_at: datetime = Field(
+        default_factory=utcnow, description="Last time the asset was observed"
+    )
     tags: list[str] = Field(default_factory=list, description="Free-form tags")
 
     @field_validator("name")
@@ -208,7 +218,9 @@ class Technology(Resource):
     asset_id: str = Field(description="Owning asset identifier")
     name: str = Field(min_length=1, max_length=255, description="Technology name")
     version: str = Field(default="", max_length=255, description="Detected version")
-    category: str = Field(default="", max_length=255, description="Category (server, framework, cdn...)")
+    category: str = Field(
+        default="", max_length=255, description="Category (server, framework, cdn...)"
+    )
 
     @field_validator("name", "category")
     @classmethod
@@ -222,7 +234,9 @@ class Finding(Resource):
     program_id: str = Field(description="Owning program identifier")
     asset_id: str | None = Field(default=None, description="Affected asset (if applicable)")
     title: str = Field(min_length=1, max_length=2048, description="Short finding title")
-    severity: FindingSeverity = Field(default=FindingSeverity.INFO, description="Estimated severity")
+    severity: FindingSeverity = Field(
+        default=FindingSeverity.INFO, description="Estimated severity"
+    )
     status: FindingStatus = Field(default=FindingStatus.OPEN, description="Lifecycle status")
     description: str = Field(default="", description="Full technical description")
     evidence: dict[str, Any] = Field(default_factory=dict, description="Supporting evidence")

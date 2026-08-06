@@ -8,7 +8,9 @@ from aegisrecon.core.models import ScopeAction, ScopeEntry, ScopeKind
 from aegisrecon.core.scope import ScopeValidator
 
 
-def _entry(value: str, kind: ScopeKind = ScopeKind.EXACT, action: ScopeAction = ScopeAction.INCLUDE) -> ScopeEntry:
+def _entry(
+    value: str, kind: ScopeKind = ScopeKind.EXACT, action: ScopeAction = ScopeAction.INCLUDE
+) -> ScopeEntry:
     return ScopeEntry(program_id="p1", value=value, kind=kind, action=action)
 
 
@@ -53,7 +55,12 @@ def test_deny_by_default_when_no_scope() -> None:
 
 
 def test_reject_reason_is_informative() -> None:
-    excluded = ScopeValidator([_entry("*.example.com", kind=ScopeKind.WILDCARD), _entry("x.example.com", action=ScopeAction.EXCLUDE)])
+    excluded = ScopeValidator(
+        [
+            _entry("*.example.com", kind=ScopeKind.WILDCARD),
+            _entry("x.example.com", action=ScopeAction.EXCLUDE),
+        ]
+    )
     assert "excluded" in excluded.reject_reason("x.example.com")
 
     none = ScopeValidator([])

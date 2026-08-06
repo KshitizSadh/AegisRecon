@@ -47,8 +47,10 @@ def ensure_dir(path: Path) -> Path:
 
 def mtime(path: Path) -> str:
     """Return the ISO-8601 modification time of a path, or empty string."""
+    from datetime import datetime, timezone
+
     try:
-        return path.stat().st_mtime
+        return datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).isoformat()
     except OSError:
         return ""
 

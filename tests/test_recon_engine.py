@@ -12,7 +12,9 @@ from aegisrecon.exceptions import ReconError
 
 
 class _FakeProvider:
-    discovered: dict[str, list[str]] = {"example.com": ["www.example.com", "api.example.com", "outofscope.org"]}
+    discovered: dict[str, list[str]] = {
+        "example.com": ["www.example.com", "api.example.com", "outofscope.org"]
+    }
 
     @classmethod
     def create(cls, **kwargs):
@@ -34,7 +36,11 @@ class _FakeResolver:
             h: Resolution(
                 hostname=h,
                 addresses=("1.2.3.4",) if h != "api.example.com" else (),
-                records={"A": ("1.2.3.4",) if h != "api.example.com" else (), "AAAA": (), "CNAME": ()},
+                records={
+                    "A": ("1.2.3.4",) if h != "api.example.com" else (),
+                    "AAAA": (),
+                    "CNAME": (),
+                },
             )
             for h in hostnames
         }

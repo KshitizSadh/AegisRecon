@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import typer
 from typer.testing import CliRunner
 
 from aegisrecon.cli import app
@@ -28,7 +27,18 @@ def test_init_creates_state(data_dir: Path) -> None:
 def test_program_create_and_list(data_dir: Path) -> None:
     runner.invoke(app, ["--data-dir", str(data_dir), "init"])
     created = runner.invoke(
-        app, ["--data-dir", str(data_dir), "program", "create", "Acme", "--org", "Acme Inc", "--tag", "a,b"]
+        app,
+        [
+            "--data-dir",
+            str(data_dir),
+            "program",
+            "create",
+            "Acme",
+            "--org",
+            "Acme Inc",
+            "--tag",
+            "a,b",
+        ],
     )
     assert created.exit_code == 0, created.output
     assert "Created program" in created.output

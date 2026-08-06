@@ -24,7 +24,6 @@ from aegisrecon.core.models import (
     DnsRecordType,
     IpRecord,
     Program,
-    ScopeEntry,
     utcnow,
 )
 from aegisrecon.core.repositories import (
@@ -37,7 +36,7 @@ from aegisrecon.core.repositories import (
 from aegisrecon.core.scope import ScopeValidator
 from aegisrecon.engines.dns import DnsResolver
 from aegisrecon.engines.passive import CertificateTransparencyProvider
-from aegisrecon.exceptions import AegisReconError, ReconError
+from aegisrecon.exceptions import ReconError
 from aegisrecon.utils.validators import is_valid_domain
 
 logger = logging.getLogger("aegisrecon.engines.recon")
@@ -108,7 +107,12 @@ class ReconEngine:
 
         allowed = [h for h in candidate_hostnames if validator.is_allowed(h)]
         result.in_scope = len(allowed)
-        logger.info("recon for %s: %d candidates, %d in scope", program.name, result.discovered, result.in_scope)
+        logger.info(
+            "recon for %s: %d candidates, %d in scope",
+            program.name,
+            result.discovered,
+            result.in_scope,
+        )
 
         self._persist(program_id, allowed, result)
         return result
@@ -137,7 +141,9 @@ class ReconEngine:
     def _collect(self, source: str, roots: list[str]) -> set[str]:
         provider_class = PASSIVE_SOURCES.get(source)
         if provider_class is None:
-            raise ReconError(f"unknown passive source {source!r}; available: {sorted(PASSIVE_SOURCES)}")
+            raise ReconError(
+                f"unknown passive source {source!r}; available: {sorted(PASSIVE_SOURCES)}"
+            )
 
         provider = provider_class.create(timeout=self.ct_timeout)
         found: set[str] = set()
@@ -214,16 +220,24 @@ class ReconEngine:
             result.ip_records,
         )
 
-    def _store_dns(self, session, asset_id: str, resolution, dns_records, ip_records, result) -> None:
+    def _store_dns(
+        self, session, asset_id: str, resolution, dns_records, ip_records, result
+    ) -> None:
         for record_type, values in resolution.records.items():
             if not values:
                 continue
             rtype = DnsRecordType(record_type)
             for value in values:
                 if not dns_records.exists(asset_id, rtype.value, value):
-                    dns_records.create(DnsRecord(asset_id=asset_id, record_type=rtype, value=value, source="resolver"))
+                    dns_records.create(
+                        DnsRecord(
+                            asset_id=asset_id, record_type=rtype, value=value, source="resolver"
+                        )
+                    )
                     result.dns_records += 1
-                if rtype in (DnsRecordType.A, DnsRecordType.AAAA) and not ip_records.exists(asset_id, value):
+                if rtype in (DnsRecordType.A, DnsRecordType.AAAA) and not ip_records.exists(
+                    asset_id, value
+                ):
                     ip_records.create(IpRecord(asset_id=asset_id, address=value, source="resolver"))
                     result.ip_records += 1
 

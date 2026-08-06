@@ -12,7 +12,7 @@ Top-level layout::
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import cast
 
 import typer
 from rich.panel import Panel
@@ -35,7 +35,7 @@ def load_settings(ctx: typer.Context) -> AegisSettings:
     """Resolve the shared settings object for an invocation."""
     if ctx.obj is None:
         ctx.obj = AegisSettings()
-    return ctx.obj
+    return cast(AegisSettings, ctx.obj)
 
 
 def load_database(settings: AegisSettings) -> Database:
@@ -55,10 +55,12 @@ def _version_callback(value: bool) -> None:
 @app.callback()
 def main(
     ctx: typer.Context,
-    version: bool = typer.Option(False, "--version", callback=_version_callback, is_eager=True, help="Show version."),
+    version: bool = typer.Option(
+        False, "--version", callback=_version_callback, is_eager=True, help="Show version."
+    ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Show verbose logging."),
     debug: bool = typer.Option(False, "--debug", help="Show debug logging."),
-    data_dir: Optional[str] = typer.Option(None, "--data-dir", help="Override the state directory."),
+    data_dir: str | None = typer.Option(None, "--data-dir", help="Override the state directory."),
 ) -> None:
     """Entrypoint shared by every command.
 
@@ -77,7 +79,7 @@ def main(
 @app.command("init")
 def init(
     ctx: typer.Context,
-    data_dir: Optional[str] = typer.Option(None, "--data-dir", help="Explicit state directory."),
+    data_dir: str | None = typer.Option(None, "--data-dir", help="Explicit state directory."),
 ) -> None:
     """Create the state directory, database schema and defaults."""
     settings = load_settings(ctx)
@@ -85,12 +87,14 @@ def init(
         settings.data_dir = Path(data_dir)
     settings.prepare()
     db = load_database(settings)
-    console.print(Panel.fit(
-        f"[bold green]AegisRecon initialized[/]\n\n"
-        f"  Data directory : [cyan]{settings.data_dir}[/]\n"
-        f"  Database       : [cyan]{settings.database_path}[/]",
-        title="init",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold green]AegisRecon initialized[/]\n\n"
+            f"  Data directory : [cyan]{settings.data_dir}[/]\n"
+            f"  Database       : [cyan]{settings.database_path}[/]",
+            title="init",
+        )
+    )
     db.close()
 
 

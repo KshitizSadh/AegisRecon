@@ -7,7 +7,6 @@ each group reads as a self-contained module.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -26,7 +25,7 @@ from aegisrecon.engines.recon import ReconEngine
 from aegisrecon.exceptions import EntityNotFoundError
 from aegisrecon.reporting.json_report import generate_json_report
 from aegisrecon.utils.console import console
-from aegisrecon.utils.validators import is_valid_hostname, normalize_list, normalize_hostname
+from aegisrecon.utils.validators import is_valid_hostname, normalize_hostname, normalize_list
 
 program_group = typer.Typer(help="Manage engagement programs.")
 scope_group = typer.Typer(help="Manage program scope rules.")
@@ -44,7 +43,9 @@ def _resolve_program(repo: ProgramRepository, value: str) -> Program:
     except EntityNotFoundError:
         found = repo.get_by_name(value)
         if found is None:
-            raise typer.BadParameter(f"program {value!r} not found (use `aegisrecon program list`)")
+            raise typer.BadParameter(
+                f"program {value!r} not found (use `aegisrecon program list`)"
+            ) from None
         return found
 
 
@@ -67,12 +68,18 @@ def program_create(
     organization: str = typer.Option("", "--org", help="Owning organization."),
     owner: str = typer.Option("", "--owner", help="Responsible researcher/team."),
     description: str = typer.Option("", "--description", help="Program description."),
-    tags: Optional[str] = typer.Option(None, "--tag", help="Comma-separated tags."),
+    tags: str | None = typer.Option(None, "--tag", help="Comma-separated tags."),
 ) -> None:
     """Create a new engagement program."""
     settings = load_settings(ctx)
     db = load_database(settings)
-    program = Program(name=name, organization=organization, owner=owner, description=description, tags=normalize_list(tags.split(",") if tags else None))
+    program = Program(
+        name=name,
+        organization=organization,
+        owner=owner,
+        description=description,
+        tags=normalize_list(tags.split(",") if tags else None),
+    )
     with db.session() as session:
         ProgramRepository(session).create(program)
         session.commit()
@@ -90,7 +97,10 @@ def program_list(ctx: typer.Context) -> None:
     if not programs:
         console.print("[yellow]No programs yet. Create one with `aegisrecon program create`.[/]")
         return
-    rows = [[p.name, p.id, p.organization, ",".join(p.tags), "yes" if p.enabled else "no"] for p in programs]
+    rows = [
+        [p.name, p.id, p.organization, ",".join(p.tags), "yes" if p.enabled else "no"]
+        for p in programs
+    ]
     _render_table("Programs", ["Name", "ID", "Organization", "Tags", "Enabled"], rows)
 
 
@@ -109,18 +119,20 @@ def program_show(
         assets = AssetRepository(session).count(program_id=found.id)
         findings = FindingRepository(session).count(program_id=found.id)
         session.close()
-    console.print(Panel.fit(
-        f"[bold]{found.name}[/]\n"
-        f"  ID          : {found.id}\n"
-        f"  Org         : {found.organization or '-'}\n"
-        f"  Owner       : {found.owner or '-'}\n"
-        f"  Description : {found.description or '-'}\n"
-        f"  Tags        : {', '.join(found.tags) or '-'}\n"
-        f"  Scope rules : {len(scopes)}\n"
-        f"  Assets      : {assets}\n"
-        f"  Findings    : {findings}",
-        title="Program",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]{found.name}[/]\n"
+            f"  ID          : {found.id}\n"
+            f"  Org         : {found.organization or '-'}\n"
+            f"  Owner       : {found.owner or '-'}\n"
+            f"  Description : {found.description or '-'}\n"
+            f"  Tags        : {', '.join(found.tags) or '-'}\n"
+            f"  Scope rules : {len(scopes)}\n"
+            f"  Assets      : {assets}\n"
+            f"  Findings    : {findings}",
+            title="Program",
+        )
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -131,7 +143,9 @@ def scope_add(
     ctx: typer.Context,
     program: str = typer.Argument(..., help="Program id or name."),
     value: str = typer.Argument(..., help="Domain, hostname, wildcard or regex."),
-    wildcard: bool = typer.Option(False, "--wildcard", help="Treat the value as a wildcard pattern."),
+    wildcard: bool = typer.Option(
+        False, "--wildcard", help="Treat the value as a wildcard pattern."
+    ),
     exclude: bool = typer.Option(False, "--exclude", help="Mark the value as out-of-scope."),
     regex: bool = typer.Option(False, "--regex", help="Treat the value as a regex pattern."),
     note: str = typer.Option("", "--note", help="Justification / source."),
@@ -183,7 +197,9 @@ def scope_list(
         entries = ScopeRepository(session).list_for_program(found.id)
         session.close()
     if not entries:
-        console.print(f"[yellow]No scope rules for {found.name}. Add one with `aegisrecon scope add`.[/]")
+        console.print(
+            f"[yellow]No scope rules for {found.name}. Add one with `aegisrecon scope add`.[/]"
+        )
         return
     rows = [[e.value, e.kind.value, e.action.value, e.note] for e in entries]
     _render_table(f"Scope: {found.name}", ["Value", "Kind", "Action", "Note"], rows)
@@ -220,7 +236,9 @@ recon_group = typer.Typer(help="Run reconnaissance workflows.", hidden=False)
 def recon_run(
     ctx: typer.Context,
     program: str = typer.Argument(..., help="Program id or name."),
-    sources: Optional[str] = typer.Option(None, "--source", help="Comma-separated sources (default: crtsh)."),
+    sources: str | None = typer.Option(
+        None, "--source", help="Comma-separated sources (default: crtsh)."
+    ),
     dns_concurrency: int = typer.Option(50, "--dns-concurrency", help="Parallel DNS workers."),
 ) -> None:
     """Run passive discovery and DNS resolution for a program."""
@@ -232,7 +250,12 @@ def recon_run(
         session.close()
 
     source_list = normalize_list(sources.split(",") if sources else None) or None
-    engine = ReconEngine(db, dns_concurrency=dns_concurrency, enable_ct_logs=settings.enable_ct_logs, ct_timeout=settings.ct_logs_timeout)
+    engine = ReconEngine(
+        db,
+        dns_concurrency=dns_concurrency,
+        enable_ct_logs=settings.enable_ct_logs,
+        ct_timeout=settings.ct_logs_timeout,
+    )
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -244,20 +267,24 @@ def recon_run(
         result = engine.run(program_id, sources=source_list)
         progress.update(task, completed=1)
 
-    console.print(Panel.fit(
-        f"[bold]Recon complete[/]\n"
-        f"  Candidates discovered : {result.discovered}\n"
-        f"  In scope             : {result.in_scope}\n"
-        f"  Resolved             : {result.resolved}\n"
-        f"  New assets           : {result.new_assets}\n"
-        f"  Updated assets       : {result.updated_assets}\n"
-        f"  DNS records stored   : {result.dns_records}\n"
-        f"  IP records stored    : {result.ip_records}\n"
-        + (f"  Failures             : {len(result.errors)}" if result.errors else ""),
-        title="Recon",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]Recon complete[/]\n"
+            f"  Candidates discovered : {result.discovered}\n"
+            f"  In scope             : {result.in_scope}\n"
+            f"  Resolved             : {result.resolved}\n"
+            f"  New assets           : {result.new_assets}\n"
+            f"  Updated assets       : {result.updated_assets}\n"
+            f"  DNS records stored   : {result.dns_records}\n"
+            f"  IP records stored    : {result.ip_records}\n"
+            + (f"  Failures             : {len(result.errors)}" if result.errors else ""),
+            title="Recon",
+        )
+    )
     if result.errors:
-        console.print("[yellow]Some hostnames failed to resolve (NXDOMAIN/timeouts). Run with --debug for details.[/]")
+        console.print(
+            "[yellow]Some hostnames failed to resolve (NXDOMAIN/timeouts). Run with --debug for details.[/]"
+        )
 
 
 @recon_group.command("ingest")
@@ -297,7 +324,7 @@ def recon_ingest(
 def report_json(
     ctx: typer.Context,
     program: str = typer.Argument(..., help="Program id or name."),
-    title: Optional[str] = typer.Option(None, "--title", help="Report title."),
+    title: str | None = typer.Option(None, "--title", help="Report title."),
 ) -> None:
     """Generate a JSON report for a program."""
     settings = load_settings(ctx)

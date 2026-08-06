@@ -43,7 +43,14 @@ def program(database: Database) -> Program:
     return created
 
 
-def add_scope(database: Database, program_id: str, value: str, *, wildcard: bool = False, exclude: bool = False) -> ScopeEntry:
+def add_scope(
+    database: Database,
+    program_id: str,
+    value: str,
+    *,
+    wildcard: bool = False,
+    exclude: bool = False,
+) -> ScopeEntry:
     """Helper to add a scope rule in a committed transaction."""
     kind = ScopeKind.WILDCARD if wildcard else ScopeKind.EXACT
     value = value if wildcard else value

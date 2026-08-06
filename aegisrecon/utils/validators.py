@@ -9,7 +9,9 @@ from __future__ import annotations
 import re
 
 # Roughly RFC 1035 compliant hostname: labels of 1-63 chars, letters/digits/hyphen.
-_HOSTNAME_RE = re.compile(r"^(?=.{1,253}$)[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+_HOSTNAME_RE = re.compile(
+    r"^(?=.{1,253}$)[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+)
 
 _TLD_RE = re.compile(r"^[a-zA-Z]{2,63}$")
 

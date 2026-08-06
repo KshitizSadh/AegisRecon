@@ -9,10 +9,16 @@ from aegisrecon.engines.passive import CertificateTransparencyProvider, _split_n
 from aegisrecon.exceptions import ReconError
 
 
-def _make_response(status_code: int = 200, content: object = None, url: str = "https://crt.sh/") -> httpx.Response:
+def _make_response(
+    status_code: int = 200, content: object = None, url: str = "https://crt.sh/"
+) -> httpx.Response:
     from httpx import Request
 
-    resp = httpx.Response(status_code, json=content) if content is not None else httpx.Response(status_code)
+    resp = (
+        httpx.Response(status_code, json=content)
+        if content is not None
+        else httpx.Response(status_code)
+    )
     resp.request = Request("GET", url)
     return resp
 
@@ -24,7 +30,9 @@ def _crt_response(*name_values: str) -> httpx.Response:
 
 def test_query_returns_normalized_subdomains(monkeypatch) -> None:
     def fake_get(self, url, **kwargs):
-        return _crt_response("www.example.com\nmail.example.com", "ftp.example.com", "www.example.com")
+        return _crt_response(
+            "www.example.com\nmail.example.com", "ftp.example.com", "www.example.com"
+        )
 
     monkeypatch.setattr(httpx.Client, "get", fake_get)
     provider = CertificateTransparencyProvider()

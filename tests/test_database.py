@@ -60,7 +60,11 @@ def test_scope_repository_filter(database, program) -> None:
     with database.session() as session:
         repo = ScopeRepository(session)
         for value in ["*.example.com", "example.com"]:
-            repo.create(ScopeEntry(program_id=program.id, value=value, kind="wildcard" if "*" in value else "exact"))
+            repo.create(
+                ScopeEntry(
+                    program_id=program.id, value=value, kind="wildcard" if "*" in value else "exact"
+                )
+            )
         session.commit()
         rules = repo.list_for_program(program.id)
         session.close()
@@ -70,8 +74,12 @@ def test_scope_repository_filter(database, program) -> None:
 def test_asset_get_or_create_dedupes(database, program) -> None:
     with database.session() as session:
         repo = AssetRepository(session)
-        first = repo.get_or_create(program.id, "www.example.com", kind=AssetKind.SUBDOMAIN, source="test")
-        second = repo.get_or_create(program.id, "WWW.Example.COM", kind=AssetKind.SUBDOMAIN, source="test")
+        first = repo.get_or_create(
+            program.id, "www.example.com", kind=AssetKind.SUBDOMAIN, source="test"
+        )
+        second = repo.get_or_create(
+            program.id, "WWW.Example.COM", kind=AssetKind.SUBDOMAIN, source="test"
+        )
         session.commit()
         names = repo.list_names(program.id)
         session.close()
@@ -82,13 +90,25 @@ def test_asset_get_or_create_dedupes(database, program) -> None:
 def test_related_records_persist(database, program) -> None:
     with database.session() as session:
         assets = AssetRepository(session)
-        asset = assets.create(Asset(program_id=program.id, name="app.example.com", kind=AssetKind.SUBDOMAIN))
-        DnsRecordRepository(session).create(DnsRecord(asset_id=asset.id, record_type=DnsRecordType.A, value="1.2.3.4"))
-        DnsRecordRepository(session).create(DnsRecord(asset_id=asset.id, record_type=DnsRecordType.AAAA, value="::1"))
+        asset = assets.create(
+            Asset(program_id=program.id, name="app.example.com", kind=AssetKind.SUBDOMAIN)
+        )
+        DnsRecordRepository(session).create(
+            DnsRecord(asset_id=asset.id, record_type=DnsRecordType.A, value="1.2.3.4")
+        )
+        DnsRecordRepository(session).create(
+            DnsRecord(asset_id=asset.id, record_type=DnsRecordType.AAAA, value="::1")
+        )
         IpRecordRepository(session).create(IpRecord(asset_id=asset.id, address="1.2.3.4"))
-        EndpointRepository(session).create(Endpoint(asset_id=asset.id, url="https://app.example.com/", status_code=200))
+        EndpointRepository(session).create(
+            Endpoint(asset_id=asset.id, url="https://app.example.com/", status_code=200)
+        )
         TechnologyRepository(session).create(Technology(asset_id=asset.id, name="nginx"))
-        FindingRepository(session).create(Finding(program_id=program.id, asset_id=asset.id, title="XSS", severity=FindingSeverity.HIGH))
+        FindingRepository(session).create(
+            Finding(
+                program_id=program.id, asset_id=asset.id, title="XSS", severity=FindingSeverity.HIGH
+            )
+        )
         a = DnsRecordRepository(session).list(asset_id=asset.id)
         ips = IpRecordRepository(session).list(asset_id=asset.id)
         endpoints = EndpointRepository(session).list(asset_id=asset.id)
@@ -123,6 +143,8 @@ def test_database_context_manager(tmp_path) -> None:
 def test_report_repository(database, program) -> None:
     with database.session() as session:
         repo = ReportRepository(session)
-        report = repo.create(Report(program_id=program.id, title="T", format="json", path="/tmp/x.json"))
+        report = repo.create(
+            Report(program_id=program.id, title="T", format="json", path="/tmp/x.json")
+        )
         session.commit()
         assert repo.get(report.id).title == "T"

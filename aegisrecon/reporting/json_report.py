@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +35,9 @@ logger = logging.getLogger("aegisrecon.reporting.json_report")
 REPORT_SCHEMA_VERSION = "1.0.0"
 
 
-def generate_json_report(database: Database, program_id: str, output_dir: Path, title: str | None = None) -> Report:
+def generate_json_report(
+    database: Database, program_id: str, output_dir: Path, title: str | None = None
+) -> Report:
     """Generate and persist a JSON report for a program.
 
     Raises:
@@ -79,7 +81,6 @@ def build_payload(database: Database, program_id: str) -> dict[str, Any]:
         findings = FindingRepository(session).list(program_id=program_id)
 
         asset_rows: list[dict[str, Any]] = []
-        asset_repo = AssetRepository(session)
         for asset in assets:
             asset_rows.append(
                 {
@@ -88,21 +89,28 @@ def build_payload(database: Database, program_id: str) -> dict[str, Any]:
                         r.model_dump(mode="json")
                         for r in DnsRecordRepository(session).list(asset_id=asset.id)
                     ],
-                    "ips": [r.model_dump(mode="json") for r in IpRecordRepository(session).list(asset_id=asset.id)],
+                    "ips": [
+                        r.model_dump(mode="json")
+                        for r in IpRecordRepository(session).list(asset_id=asset.id)
+                    ],
                     "endpoints": [
-                        e.model_dump(mode="json") for e in EndpointRepository(session).list(asset_id=asset.id)
+                        e.model_dump(mode="json")
+                        for e in EndpointRepository(session).list(asset_id=asset.id)
                     ],
                     "technologies": [
-                        t.model_dump(mode="json") for t in TechnologyRepository(session).list(asset_id=asset.id)
+                        t.model_dump(mode="json")
+                        for t in TechnologyRepository(session).list(asset_id=asset.id)
                     ],
                 }
             )
         session.close()
 
-    summary = _summarize(payload_assets=asset_rows, findings=[f.model_dump(mode="json") for f in findings])
+    summary = _summarize(
+        payload_assets=asset_rows, findings=[f.model_dump(mode="json") for f in findings]
+    )
     return {
         "schema_version": REPORT_SCHEMA_VERSION,
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "program": program.model_dump(mode="json"),
         "scope": [e.model_dump(mode="json") for e in scope_entries],
         "assets": asset_rows,
@@ -111,7 +119,9 @@ def build_payload(database: Database, program_id: str) -> dict[str, Any]:
     }
 
 
-def _summarize(payload_assets: list[dict[str, Any]], findings: list[dict[str, Any]]) -> dict[str, Any]:
+def _summarize(
+    payload_assets: list[dict[str, Any]], findings: list[dict[str, Any]]
+) -> dict[str, Any]:
     """Compute aggregate statistics over report data."""
     by_kind: dict[str, int] = {}
     by_severity: dict[str, int] = {}

@@ -41,7 +41,9 @@ class ProgramORM(Base):
     tags: Mapped[list] = mapped_column(JSON, default=list)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 class ScopeEntryORM(Base):
@@ -54,7 +56,9 @@ class ScopeEntryORM(Base):
     action: Mapped[str] = mapped_column(String(16))
     note: Mapped[str] = mapped_column(String(1000), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 class AssetORM(Base):
@@ -68,7 +72,9 @@ class AssetORM(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     tags: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 class DnsRecordORM(Base):
@@ -81,7 +87,9 @@ class DnsRecordORM(Base):
     ttl: Mapped[int] = mapped_column(Integer, default=0)
     source: Mapped[str] = mapped_column(String(255), default="resolver")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 class IpRecordORM(Base):
@@ -92,7 +100,9 @@ class IpRecordORM(Base):
     address: Mapped[str] = mapped_column(String(45), index=True)
     source: Mapped[str] = mapped_column(String(255), default="resolver")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 class EndpointORM(Base):
@@ -106,7 +116,9 @@ class EndpointORM(Base):
     content_type: Mapped[str] = mapped_column(String(255), default="")
     source: Mapped[str] = mapped_column(String(255), default="httpx")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 class TechnologyORM(Base):
@@ -118,7 +130,9 @@ class TechnologyORM(Base):
     version: Mapped[str] = mapped_column(String(255), default="")
     category: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 class FindingORM(Base):
@@ -126,7 +140,9 @@ class FindingORM(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     program_id: Mapped[str] = mapped_column(String(36), ForeignKey("programs.id"), index=True)
-    asset_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("assets.id"), nullable=True, index=True)
+    asset_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("assets.id"), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String(2048), index=True)
     severity: Mapped[str] = mapped_column(String(16), index=True)
     status: Mapped[str] = mapped_column(String(32), index=True)
@@ -134,7 +150,9 @@ class FindingORM(Base):
     evidence: Mapped[dict] = mapped_column(JSON, default=dict)
     references: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 class ReportORM(Base):
@@ -147,7 +165,9 @@ class ReportORM(Base):
     path: Mapped[str] = mapped_column(String(2048), default="")
     summary: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 __all__ = [

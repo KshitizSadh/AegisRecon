@@ -8,8 +8,8 @@ services on top of it, so the store can be swapped or tested independently.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
@@ -42,7 +42,9 @@ class Database:
             future=True,
         )
         event.listen(self.engine, "connect", _set_sqlite_pragmas)
-        self._session_factory = sessionmaker(bind=self.engine, expire_on_commit=False, class_=Session)
+        self._session_factory = sessionmaker(
+            bind=self.engine, expire_on_commit=False, class_=Session
+        )
 
     def create_schema(self) -> None:
         """Create all tables that do not yet exist."""
@@ -75,7 +77,14 @@ class Database:
         """Dispose of the underlying engine and any pooled connections."""
         self.engine.dispose()
 
-    def __enter__(self) -> "Database":
+    def __del__(self) -> None:
+        """Best-effort engine disposal so pooled SQLite handles are released."""
+        try:
+            self.close()
+        except Exception:  # noqa: BLE001 - destructor must never raise
+            pass
+
+    def __enter__(self) -> Database:
         self.create_schema()
         return self
 

@@ -7,8 +7,6 @@ output goes through :data:`console`, which writes to stderr.
 
 from __future__ import annotations
 
-import sys
-
 from rich.console import Console
 
 console = Console(stderr=True, soft_wrap=True)

@@ -10,8 +10,16 @@ from aegisrecon.engines.dns import DnsResolver, Resolution
 from aegisrecon.exceptions import ResolutionError
 
 _HOSTS = {
-    "www.example.com": {DnsRecordType.A: ["93.184.216.34"], DnsRecordType.AAAA: [], DnsRecordType.CNAME: []},
-    "alias.example.com": {DnsRecordType.A: ["10.0.0.1"], DnsRecordType.AAAA: [], DnsRecordType.CNAME: ["www.example.com"]},
+    "www.example.com": {
+        DnsRecordType.A: ["93.184.216.34"],
+        DnsRecordType.AAAA: [],
+        DnsRecordType.CNAME: [],
+    },
+    "alias.example.com": {
+        DnsRecordType.A: ["10.0.0.1"],
+        DnsRecordType.AAAA: [],
+        DnsRecordType.CNAME: ["www.example.com"],
+    },
     "missing.example.com": {},
 }
 

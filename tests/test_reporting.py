@@ -4,22 +4,53 @@ from __future__ import annotations
 
 import json
 
-from aegisrecon.core.models import Asset, AssetKind, DnsRecord, DnsRecordType, Finding, FindingSeverity, IpRecord
-from aegisrecon.core.repositories import AssetRepository, DnsRecordRepository, FindingRepository, IpRecordRepository
-from aegisrecon.reporting.json_report import build_payload, generate_json_report, REPORT_SCHEMA_VERSION
+from aegisrecon.core.models import (
+    Asset,
+    AssetKind,
+    DnsRecord,
+    DnsRecordType,
+    Finding,
+    FindingSeverity,
+    IpRecord,
+)
+from aegisrecon.core.repositories import (
+    AssetRepository,
+    DnsRecordRepository,
+    FindingRepository,
+    IpRecordRepository,
+)
+from aegisrecon.reporting.json_report import (
+    REPORT_SCHEMA_VERSION,
+    build_payload,
+    generate_json_report,
+)
 
 
 def _seed(database, program) -> None:
     with database.session() as session:
         assets = AssetRepository(session)
-        asset = assets.create(Asset(program_id=program.id, name="www.example.com", kind=AssetKind.SUBDOMAIN))
-        DnsRecordRepository(session).create(DnsRecord(asset_id=asset.id, record_type=DnsRecordType.A, value="1.2.3.4"))
+        asset = assets.create(
+            Asset(program_id=program.id, name="www.example.com", kind=AssetKind.SUBDOMAIN)
+        )
+        DnsRecordRepository(session).create(
+            DnsRecord(asset_id=asset.id, record_type=DnsRecordType.A, value="1.2.3.4")
+        )
         IpRecordRepository(session).create(IpRecord(asset_id=asset.id, address="1.2.3.4"))
         FindingRepository(session).create(
-            Finding(program_id=program.id, asset_id=asset.id, title="Reflected XSS", severity=FindingSeverity.HIGH)
+            Finding(
+                program_id=program.id,
+                asset_id=asset.id,
+                title="Reflected XSS",
+                severity=FindingSeverity.HIGH,
+            )
         )
         FindingRepository(session).create(
-            Finding(program_id=program.id, asset_id=asset.id, title="Info leak", severity=FindingSeverity.INFO)
+            Finding(
+                program_id=program.id,
+                asset_id=asset.id,
+                title="Info leak",
+                severity=FindingSeverity.INFO,
+            )
         )
         session.commit()
         session.close()

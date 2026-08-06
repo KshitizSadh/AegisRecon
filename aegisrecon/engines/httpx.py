@@ -13,9 +13,10 @@ import logging
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from aegisrecon.exceptions import ToolNotFoundError
 from aegisrecon.utils.retry import retry
@@ -60,16 +61,19 @@ class HttpxProber:
     """Wraps the ProjectDiscovery httpx binary."""
 
     def __init__(self, binary: str = "httpx") -> None:
-        self.binary_path = shutil.which(binary)
-        if self.binary_path is None:
+        resolved = shutil.which(binary)
+        if resolved is None:
             raise ToolNotFoundError(
                 f"httpx binary {binary!r} was not found on PATH. "
                 "Install it from https://github.com/projectdiscovery/httpx/releases "
                 "or set AEGISRECON_HTTPX_BIN."
             )
+        self.binary_path = resolved
         logger.debug("using httpx at %s", self.binary_path)
 
-    def probe(self, targets: Iterable[str], extra_flags: list[str] | None = None) -> list[ProbingResult]:
+    def probe(
+        self, targets: Iterable[str], extra_flags: list[str] | None = None
+    ) -> list[ProbingResult]:
         """Run httpx against *targets* and return parsed results.
 
         Raises:
@@ -79,7 +83,9 @@ class HttpxProber:
         if not lines:
             return []
 
-        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as handle:
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".txt", delete=False, encoding="utf-8"
+        ) as handle:
             handle.write("\n".join(lines))
             target_file = Path(handle.name)
 
@@ -103,7 +109,7 @@ class HttpxProber:
         )
         if proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, command, stderr=proc.stderr)
-        return proc.stdout
+        return proc.stdout or ""
 
     @staticmethod
     def _parse(line: str) -> ProbingResult:
@@ -111,7 +117,14 @@ class HttpxProber:
             payload: dict[str, Any] = json.loads(line)
         except json.JSONDecodeError:
             logger.warning("skipping unparseable httpx line: %s", line[:200])
-            return ProbingResult(url=line.strip(), status_code=None, title="", content_type="", web_server="", technologies=())
+            return ProbingResult(
+                url=line.strip(),
+                status_code=None,
+                title="",
+                content_type="",
+                web_server="",
+                technologies=(),
+            )
 
         tech = payload.get("tech", []) or []
         return ProbingResult(

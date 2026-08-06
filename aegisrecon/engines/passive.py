@@ -35,7 +35,12 @@ class CertificateTransparencyProvider(ReconProvider):
     author = "AegisRecon Contributors"
     description = "Certificate Transparency log search via crt.sh"
 
-    def __init__(self, client: httpx.Client | None = None, timeout: float = 20.0, user_agent: str = "AegisRecon") -> None:
+    def __init__(
+        self,
+        client: httpx.Client | None = None,
+        timeout: float = 20.0,
+        user_agent: str = "AegisRecon",
+    ) -> None:
         self.client = client or httpx.Client(
             headers={"User-Agent": user_agent},
             timeout=httpx.Timeout(timeout),
@@ -44,7 +49,7 @@ class CertificateTransparencyProvider(ReconProvider):
         self.timeout = timeout
 
     @classmethod
-    def create(cls, **kwargs: Any) -> "CertificateTransparencyProvider":
+    def create(cls, **kwargs: Any) -> CertificateTransparencyProvider:
         return cls(**kwargs)
 
     @retry(attempts=3, logger_=logger)

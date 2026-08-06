@@ -42,19 +42,33 @@ class AegisSettings(BaseSettings):
     )
 
     # --- Storage -------------------------------------------------------
-    data_dir: Path = Field(default_factory=default_data_dir, description="Root directory for all state")
-    db_path: Path | None = Field(default=None, description="Explicit SQLite database path (overrides data_dir)")
+    data_dir: Path = Field(
+        default_factory=default_data_dir, description="Root directory for all state"
+    )
+    db_path: Path | None = Field(
+        default=None, description="Explicit SQLite database path (overrides data_dir)"
+    )
     state_file: str = Field(default="state.json", description="File name for framework state JSON")
 
     # --- Networking / engines ------------------------------------------
     concurrency: int = Field(default=20, ge=1, le=200, description="Default parallel worker count")
-    timeout_seconds: float = Field(default=10.0, gt=0, le=300, description="Per-request timeout in seconds")
-    retries: int = Field(default=2, ge=0, le=10, description="Number of retries for transient failures")
-    dns_concurrency: int = Field(default=50, ge=1, le=500, description="Parallel DNS resolution workers")
+    timeout_seconds: float = Field(
+        default=10.0, gt=0, le=300, description="Per-request timeout in seconds"
+    )
+    retries: int = Field(
+        default=2, ge=0, le=10, description="Number of retries for transient failures"
+    )
+    dns_concurrency: int = Field(
+        default=50, ge=1, le=500, description="Parallel DNS resolution workers"
+    )
 
     # --- External tooling ------------------------------------------------
-    httpx_bin: str = Field(default="httpx", description="Path or name of the ProjectDiscovery httpx binary")
-    subfinder_bin: str = Field(default="subfinder", description="Path or name of the ProjectDiscovery subfinder binary")
+    httpx_bin: str = Field(
+        default="httpx", description="Path or name of the ProjectDiscovery httpx binary"
+    )
+    subfinder_bin: str = Field(
+        default="subfinder", description="Path or name of the ProjectDiscovery subfinder binary"
+    )
     use_external_httpx: bool = Field(
         default=True,
         description="Shell out to ProjectDiscovery httpx for HTTP probing",
@@ -65,9 +79,15 @@ class AegisSettings(BaseSettings):
     )
 
     # --- Passive sources --------------------------------------------------
-    enable_ct_logs: bool = Field(default=True, description="Enable Certificate Transparency passive discovery")
-    enable_dns_records: bool = Field(default=True, description="Enable passive DNS record collection")
-    ct_logs_timeout: float = Field(default=20.0, gt=0, le=120, description="CT log query timeout in seconds")
+    enable_ct_logs: bool = Field(
+        default=True, description="Enable Certificate Transparency passive discovery"
+    )
+    enable_dns_records: bool = Field(
+        default=True, description="Enable passive DNS record collection"
+    )
+    ct_logs_timeout: float = Field(
+        default=20.0, gt=0, le=120, description="CT log query timeout in seconds"
+    )
 
     # --- Privacy / safety ---------------------------------------------------
     require_scope: bool = Field(
@@ -78,7 +98,9 @@ class AegisSettings(BaseSettings):
     debug: bool = Field(default=False, description="Enable debug-level logging (never log secrets)")
 
     # --- Reporting -----------------------------------------------------------
-    report_dir: str = Field(default="reports", description="Directory for generated reports (relative to data_dir)")
+    report_dir: str = Field(
+        default="reports", description="Directory for generated reports (relative to data_dir)"
+    )
 
     # --- Derived helpers ----------------------------------------------------
     @property

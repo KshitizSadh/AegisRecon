@@ -7,14 +7,15 @@ methods accept and return Pydantic domain models, never ORM rows.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, Generic, TypeVar
 
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from aegisrecon.core.db_models import (
     AssetORM,
+    Base,
     DnsRecordORM,
     EndpointORM,
     FindingORM,
@@ -34,12 +35,13 @@ from aegisrecon.core.models import (
     Report,
     ScopeEntry,
     Technology,
+    utcnow,
 )
 from aegisrecon.exceptions import EntityNotFoundError
 from aegisrecon.utils.validators import normalize_hostname
 
-M = TypeVar("M")
-R = TypeVar("R")
+M = TypeVar("M", bound=BaseModel)
+R = TypeVar("R", bound=Base)
 
 
 def _iso(value: Any) -> Any:
@@ -60,16 +62,12 @@ class BaseRepository(Generic[M, R]):
 
     # -- mapping -------------------------------------------------------
     def _to_domain(self, row: R) -> M:
-        data = {
-            column.name: getattr(row, column.name)
-            for column in row.__table__.columns
-        }
+        data = {column.name: getattr(row, column.name) for column in row.__table__.columns}
         data = {k: _iso(v) for k, v in data.items()}
-        return self.domain.model_validate(data)
+        return self.domain.model_validate(data)  # type: ignore[return-value]
 
     def _from_domain(self, model: M) -> R:
-        row = self.orm(**model.model_dump(mode="python"))
-        return row
+        return self.orm(**model.model_dump(mode="python"))
 
     # -- primitives ------------------------------------------------------
     def create(self, model: M) -> M:
@@ -88,7 +86,7 @@ class BaseRepository(Generic[M, R]):
         for key, value in filters.items():
             if value is not None:
                 stmt = stmt.where(getattr(self.orm, key) == value)
-        stmt = stmt.order_by(getattr(self.orm, "created_at"))
+        stmt = stmt.order_by(getattr(self.orm, "created_at"))  # noqa: B009 - generic ORM type
         rows = self.session.scalars(stmt).all()
         return [self._to_domain(row) for row in rows]
 
@@ -108,7 +106,7 @@ class BaseRepository(Generic[M, R]):
         self.session.delete(row)
 
     def count(self, **filters: Any) -> int:
-        stmt = select(self.orm.id)
+        stmt = select(getattr(self.orm, "id"))  # noqa: B009 - generic ORM type
         for key, value in filters.items():
             if value is not None:
                 stmt = stmt.where(getattr(self.orm, key) == value)
@@ -160,7 +158,6 @@ class AssetRepository(BaseRepository[Asset, AssetORM]):
         row = self.session.get(AssetORM, entity_id)
         if row is None:
             raise EntityNotFoundError(f"Asset with id {entity_id!r} not found")
-        from aegisrecon.core.models import utcnow
         row.last_seen_at = utcnow()
         self.session.flush()
         return self._to_domain(row)
