@@ -128,6 +128,7 @@ Expected flow:
 | Symptom | Fix |
 | --- | --- |
 | `External tool 'httpx' was not found` | `go install .../httpx@latest` or set `AEGISRECON_HTTPX_BIN`. |
+| `httpx` fails: "install everything with pip install 'httpx[cli]'" | The **Python** `httpx` package's CLI is shadowing the Go binary (e.g. from the `[api]` extra). Ensure `~/go/bin` precedes the venv on `PATH`, or set `AEGISRECON_HTTPX_BIN`. |
 | `naabu` / `katana` not found | Install them (see step 4) or set `AEGISRECON_NAABU_BIN` / `AEGISRECON_KATANA_BIN`. |
 | `nuclei` / `dnsx` / `gitleaks` not found | Install via `go install` (see step 4) or set the matching `AEGISRECON_*_BIN`. `recon run` still works without `dnsx` (falls back to dnspython). |
 | `command not found: aegisrecon` | Activate the venv: `source .venv/bin/activate`, or run `python -m aegisrecon`. |

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
-import shutil
+import os
 import subprocess
 import tempfile
 from collections.abc import Iterable
@@ -57,11 +57,45 @@ class ProbingResult:
     raw: dict[str, Any] = field(default_factory=dict)
 
 
+def _looks_like_python_script(path: str) -> bool:
+    """Detect the Python 'httpx[cli]' client that shadows the Go binary.
+
+    The Python httpx package ships a console script named ``httpx``. When both
+    are installed (eg AegisRecon's optional ``[api]`` extra pulls in the Python
+    httpx), the venv's entry point can shadow ProjectDiscovery's binary and it
+    fails at runtime with: "Make sure you've installed everything with: pip
+    install 'httpx[cli]'". We skip such scripts when scanning PATH.
+    """
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(512)
+    except OSError:
+        return False
+    if head.startswith(b"#!") and b"python" in head.lower():
+        return True
+    # pip's console-script launcher on Windows pairs <name>.exe with <name>-script.py.
+    if os.name == "nt" and path.lower().endswith(".exe"):
+        return os.path.isfile(os.path.splitext(path)[0] + "-script.py")
+    return False
+
+
+def _find_go_binary(name: str) -> str | None:
+    """Resolve a ProjectDiscovery Go binary, skipping Python stub collisions."""
+    if os.path.sep in name or (os.path.altsep and os.path.altsep in name):
+        return name if os.path.isfile(name) else None
+    ext = ".exe" if os.name == "nt" else ""
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        candidate = os.path.join(directory, f"{name}{ext}")
+        if os.path.isfile(candidate) and not _looks_like_python_script(candidate):
+            return candidate
+    return None
+
+
 class HttpxProber:
     """Wraps the ProjectDiscovery httpx binary."""
 
     def __init__(self, binary: str = "httpx") -> None:
-        resolved = shutil.which(binary)
+        resolved = _find_go_binary(binary)
         if resolved is None:
             raise ToolNotFoundError(
                 f"httpx binary {binary!r} was not found on PATH. "

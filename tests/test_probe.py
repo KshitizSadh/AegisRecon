@@ -14,7 +14,9 @@ from aegisrecon.engines.probe import ProbeEngine
 
 @pytest.fixture(autouse=True)
 def _fake_httpx(monkeypatch) -> None:
-    monkeypatch.setattr("shutil.which", lambda name: "/usr/local/bin/httpx")
+    monkeypatch.setattr(
+        "aegisrecon.engines.httpx._find_go_binary", lambda name: "/usr/local/bin/httpx"
+    )
 
 
 @dataclass
