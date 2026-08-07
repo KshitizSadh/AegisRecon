@@ -73,3 +73,27 @@ def test_config_show(data_dir: Path) -> None:
 def test_report_json_no_program(data_dir: Path) -> None:
     result = runner.invoke(app, ["--data-dir", str(data_dir), "report", "json", "ghost"])
     assert result.exit_code != 0
+
+def test_global_options_after_subcommand(data_dir: Path) -> None:
+    """--debug/--data-dir/-v must be accepted anywhere on the command line."""
+    from aegisrecon.cli import _hoist_global_options
+
+    assert _hoist_global_options(["recon", "run", "--debug"]) == ["--debug", "recon", "run"]
+    assert _hoist_global_options(
+        ["recon", "run", "--source", "crtsh", "--debug"]
+    ) == ["--debug", "recon", "run", "--source", "crtsh"]
+    assert _hoist_global_options(
+        ["recon", "--data-dir", "/tmp/x", "run"]
+    ) == ["--data-dir", "/tmp/x", "recon", "run"]
+    assert _hoist_global_options(
+        ["--data-dir=/tmp", "recon", "run", "-v"]
+    ) == ["--data-dir=/tmp", "-v", "recon", "run"]
+
+    # end-to-end: --debug after the subcommand must not be "no such option",
+    # and the program-not-found error must surface instead.
+    result = runner.invoke(
+        app,
+        ["--data-dir", str(data_dir), "recon", "run", "--debug", "ghost"],
+    )
+    assert "No such option: --debug" not in result.output
+    assert result.exit_code != 0

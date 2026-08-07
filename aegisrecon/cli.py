@@ -16,6 +16,7 @@ from typing import cast
 
 import typer
 from rich.panel import Panel
+from typer.core import TyperGroup
 
 from aegisrecon import __version__
 from aegisrecon.config import AegisSettings
@@ -23,8 +24,49 @@ from aegisrecon.core.database import Database
 from aegisrecon.utils.console import console
 from aegisrecon.utils.logging import setup_logging
 
+# Global options that must be accepted anywhere on the command line, including
+# after a subcommand (e.g. ``aegisrecon recon run "Lab" --debug``).
+_GLOBAL_FLAGS = {"--debug", "-v", "--verbose"}
+_GLOBAL_VALUE_OPTS = {"--data-dir"}
+
+
+def _hoist_global_options(args: list[str]) -> list[str]:
+    """Move global options to the front of *args* so the root callback sees them.
+
+    Only the root group reorders; subcommand-local options keep their order.
+    """
+    front: list[str] = []
+    rest: list[str] = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in _GLOBAL_FLAGS:
+            front.append(arg)
+            i += 1
+        elif arg.startswith("--data-dir=") or arg in _GLOBAL_VALUE_OPTS:
+            front.append(arg)
+            i += 1
+            if arg in _GLOBAL_VALUE_OPTS and i < len(args):
+                front.append(args[i])
+                i += 1
+        else:
+            rest.append(arg)
+            i += 1
+    return front + rest
+
+
+class AegisTyperGroup(TyperGroup):
+    """Typer group that accepts global options before or after subcommands."""
+
+    def parse_args(self, ctx, args):  # type: ignore[no-untyped-def]
+        if ctx.parent is None:
+            args = _hoist_global_options(list(args))
+        return super().parse_args(ctx, args)
+
+
 app = typer.Typer(
     name="aegisrecon",
+    cls=AegisTyperGroup,
     help="Enterprise-grade Attack Surface Intelligence and Bug Bounty Automation Framework.",
     add_completion=True,
     no_args_is_help=True,
