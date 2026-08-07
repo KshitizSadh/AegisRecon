@@ -2,6 +2,19 @@
 
 AegisRecon is designed to run on Kali Linux, Ubuntu, Debian, Parrot OS, Windows WSL and macOS. This guide focuses on Kali, the primary development environment.
 
+> **Quick install** — a one-shot installer automates everything below
+> (system packages, virtualenv, package, optional ProjectDiscovery tools and
+> the offline test suite):
+>
+> ```bash
+> git clone <your-repo-url> ~/AegisRecon && cd ~/AegisRecon
+> ./install.sh                      # venv + package + tests
+> ./install.sh --with-tools         # also install httpx/subfinder/naabu/katana
+> ```
+>
+> Run `./install.sh --help` for all options. The manual steps below mirror
+> exactly what the script does.
+
 ## Prerequisites
 
 - Python 3.10+
