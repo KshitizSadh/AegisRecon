@@ -78,11 +78,14 @@ class ReconEngine:
         dns_concurrency: int = 50,
         enable_ct_logs: bool = True,
         ct_timeout: float = 20.0,
+        dns_bin: str | None = None,
     ) -> None:
         self.database = database
         self.dns_concurrency = dns_concurrency
         self.enable_ct_logs = enable_ct_logs
         self.ct_timeout = ct_timeout
+        # ``dns_bin`` = "dnsx" opts into the Go bulk resolver when available.
+        self.dns_bin = dns_bin
 
     # -- public API ------------------------------------------------------
     def run(
@@ -223,13 +226,32 @@ class ReconEngine:
             )
         return roots
 
+    def _build_resolver(self):
+        """Return a dnsx resolver when requested and available, else dnspython.
+
+        Falls back to the pure-Python :class:`DnsResolver` whenever ``dnsx`` is
+        unavailable or ``dns_bin`` was not set, so recon never hard-depends on
+        the Go binary.
+        """
+        from aegisrecon.engines.dnsx import DnsxResolver
+
+        if self.dns_bin and self.dns_bin != "dnspython":
+            probe = DnsxResolver(binary=self.dns_bin, concurrency=self.dns_concurrency)
+            if probe.available:
+                logger.debug("using dnsx (%s) for bulk resolution", self.dns_bin)
+                return probe
+            logger.warning(
+                "dnsx binary %r not found; falling back to dnspython", self.dns_bin
+            )
+        return DnsResolver(concurrency=self.dns_concurrency)
+
     def _persist(self, program_id: str, hostnames: list[str], result: ReconResult) -> None:
         """Resolve and store in-scope hostnames and their records."""
         if not hostnames:
             logger.info("nothing to persist for program %s", program_id)
             return
 
-        resolver = DnsResolver(concurrency=self.dns_concurrency)
+        resolver = self._build_resolver()
         resolutions = resolver.resolve_many(hostnames)
         result.errors.extend(resolver.errors)
         result.resolved = sum(1 for r in resolutions.values() if r.is_resolved)

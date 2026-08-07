@@ -66,6 +66,9 @@ go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
 go install -v github.com/projectdiscovery/subfinder/cmd/subfinder@latest
 go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
 go install -v github.com/projectdiscovery/katana/cmd/katana@latest
+go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+go install -v github.com/gitleaks/gitleaks/v8@latest
 
 # Add Go's bin directory to PATH
 export PATH="$PATH:$HOME/go/bin"
@@ -80,6 +83,9 @@ Each tool is optional and maps to one command group:
 | `subfinder` | `recon run --source subfinder` | `AEGISRECON_SUBFINDER_BIN` |
 | `naabu` | `ports scan` | `AEGISRECON_NAABU_BIN` |
 | `katana` | `harvest js` | `AEGISRECON_KATANA_BIN` |
+| `dnsx` | `recon run` (bulk DNS, falls back to dnspython) | `AEGISRECON_DNSX_BIN` |
+| `nuclei` | `vuln run` | `AEGISRECON_NUCLEI_BIN` |
+| `gitleaks` | `secrets scan-repo` | `AEGISRECON_GITLEAKS_BIN` |
 
 AegisRecon discovers these binaries automatically via `PATH`, or you can point at them explicitly:
 
@@ -123,6 +129,7 @@ Expected flow:
 | --- | --- |
 | `External tool 'httpx' was not found` | `go install .../httpx@latest` or set `AEGISRECON_HTTPX_BIN`. |
 | `naabu` / `katana` not found | Install them (see step 4) or set `AEGISRECON_NAABU_BIN` / `AEGISRECON_KATANA_BIN`. |
+| `nuclei` / `dnsx` / `gitleaks` not found | Install via `go install` (see step 4) or set the matching `AEGISRECON_*_BIN`. `recon run` still works without `dnsx` (falls back to dnspython). |
 | `command not found: aegisrecon` | Activate the venv: `source .venv/bin/activate`, or run `python -m aegisrecon`. |
 | `externally-managed-environment` error | You skipped the venv; use `python3 -m venv .venv`. |
 | DNS timeouts in `recon run` | Ensure outbound UDP/53 works; increase concurrency via `--dns-concurrency`. |

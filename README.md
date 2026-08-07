@@ -40,7 +40,7 @@ collecting data.
   technologies, findings, reports.
 - 🎨 **Beautiful CLI** — Typer + Rich: colored tables, progress bars, panels.
 - 📦 **Runs anywhere** — Kali, Ubuntu, Debian, Parrot, macOS, Windows WSL.
-- 🔌 **ProjectDiscovery-native** — first-class integration with `httpx`.
+- 🔌 **ProjectDiscovery-native** — first-class integration with `httpx`, `subfinder`, `naabu`, `katana`, `dnsx`, and `nuclei`, plus `gitleaks` for secrets — all offloaded to fast Go binaries where possible.
 
 ## Quick start
 
@@ -90,7 +90,9 @@ $ aegisrecon recon run Acme
 | `aegisrecon probe run` | Probe assets with `httpx`, extract endpoints + parameters |
 | `aegisrecon harvest js` | Harvest JavaScript files with `katana` |
 | `aegisrecon secrets scan/list` | Detect and review leaked secrets in stored files |
+| `aegisrecon secrets scan-repo <dir>` | Scan a git repo / dir with the Go `gitleaks` binary |
 | `aegisrecon ports scan` | Discover open ports with `naabu` |
+| `aegisrecon vuln run` | Scan endpoints for vulnerabilities with `nuclei` |
 | `aegisrecon screenshot run` | Capture screenshots of live endpoints |
 | `aegisrecon monitor run` | Snapshot state and detect changes over time |
 | `aegisrecon schedule add/list/run` | Manage recurring scheduled workflows |

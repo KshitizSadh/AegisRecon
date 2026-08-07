@@ -70,10 +70,13 @@ aegisrecon/
 │   ├── passive.py          # CT-log subdomain discovery (crt.sh)
 │   ├── subfinder.py        # ProjectDiscovery subfinder passive enumeration
 │   ├── dns.py              # parallel DNS resolution
+│   ├── dnsx.py             # Go dnsx bulk resolver (falls back to dns.py)
 │   ├── httpx.py            # ProjectDiscovery httpx integration
 │   ├── probe.py            # HTTP probing: endpoints, tech, parameters
 │   ├── naabu.py            # ProjectDiscovery naabu port scanning
 │   ├── js.py               # katana JS harvesting + download/hash/storage
+│   ├── nuclei.py           # ProjectDiscovery nuclei vulnerability scanner
+│   ├── gitleaks.py         # Go gitleaks repo secret scanner
 │   ├── secrets.py          # pure regex + entropy secret detector
 │   ├── secretscan.py       # secret scan orchestration + persistence
 │   ├── screenshot.py       # httpx -screenshot capture + on-disk storage
@@ -118,10 +121,14 @@ exclude > include. Used by the recon engine before any persistence or probing.
 Stateless-ish workers that produce or transform data:
 - `passive.py` / `subfinder.py` — `ReconProvider`s returning hostnames.
 - `dns.py` — resolves hostnames into `Resolution` records in parallel.
+- `dnsx.py` — bulk resolver offloading DNS to the Go `dnsx` binary; `recon.py`
+  uses it when available and otherwise falls back to `dns.py` (dnspython).
 - `httpx.py` — shells out to ProjectDiscovery `httpx`, parses JSONL.
 - `probe.py` — persists endpoints, technologies and parameters for in-scope assets.
 - `naabu.py` — parses `naabu` JSON output and persists open ports.
 - `js.py` — harvests JS URLs via `katana`, downloads bodies, hashes and stores them.
+- `nuclei.py` — runs ProjectDiscovery `nuclei` over in-scope endpoints and persists matches as findings.
+- `gitleaks.py` — runs the Go `gitleaks` binary over a git repo/directory and persists `Secret` records.
 - `secrets.py` — pure regex + Shannon-entropy detector (side-effect free).
 - `secretscan.py` — runs the detector over stored files and persists `Secret` records.
 - `screenshot.py` — drives `httpx -screenshot`, moves renders to disk, records them.

@@ -89,6 +89,23 @@ docs at `/docs`; the HTML dashboard is served per program at
 `/programs/{id}/dashboard`. State-changing endpoints are role-guarded via the
 `X-Aegis-Email` header.
 
+## `aegisrecon vuln`
+
+| Command | Example | Purpose |
+| --- | --- | --- |
+| `run` | `aegisrecon vuln run Acme` | Scan endpoints with ProjectDiscovery `nuclei` |
+| `run` | `aegisrecon vuln run Acme --severity high,critical --tags cve` | Filter templates |
+
+Matches are persisted as findings (same triage/report pipeline).
+
+## `aegisrecon secrets`
+
+| Command | Example | Purpose |
+| --- | --- | --- |
+| `scan` | `aegisrecon secrets scan Acme` | Scan harvested file bodies with the built-in detector |
+| `scan-repo` | `aegisrecon secrets scan-repo Acme ./repo` | Scan a git repo / dir with the Go `gitleaks` binary |
+| `list` | `aegisrecon secrets list Acme` | List detected secrets |
+
 ## `aegisrecon config`
 
 | Command | Purpose |

@@ -7,6 +7,24 @@ All notable changes to AegisRecon are documented here. This project follows
 ## [Unreleased]
 
 ### Added
+- **dnsx DNS resolver** (`engines/dnsx.py`): bulk A/AAAA/CNAME resolution via the
+  Go `dnsx` binary (JSONL), with automatic fallback to the pure-Python dnspython
+  resolver when `dnsx` is not installed — the biggest hot path of `recon run`
+  now runs in Go.
+- **Nuclei scanner** (`engines/nuclei.py`): runs ProjectDiscovery `nuclei` over
+  in-scope endpoints and persists matches as findings. New `vuln` CLI group
+  (`vuln run`) with severity/tags filters.
+- **gitleaks scanner** (`engines/gitleaks.py`): scans a git repo or directory
+  with the Go `gitleaks` binary. New `secrets scan-repo` CLI command.
+- **New config keys**: `dnsx_bin`, `nuclei_bin`, `gitleaks_bin`,
+  `auto_install_tools`; removed unused `use_external_httpx`.
+- **install.sh** now also installs `dnsx`, `nuclei` and `gitleaks` via Go.
+
+### Changed
+- `recon run` now only passes `ct_timeout` to the `crtsh` provider (previously it
+  leaked into every external binary call, making `subfinder` time out at 20s).
+
+### Added
 - **New domain entities**: `Port`, `Parameter`, `AssetFile`, `Secret`, `Snapshot`
   (Pydantic models, ORM tables, and repositories with `exists` / `latest` /
   `history`, plus program-scoped joins for endpoints and asset files).

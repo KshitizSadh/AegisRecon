@@ -161,6 +161,7 @@ from aegisrecon.cli_groups import (  # noqa: E402, F401
     screenshot_group,
     secrets_group,
     suggest_group,
+    vuln_group,
 )
 
 app.add_typer(program_group, name="program", help="Manage engagement programs.")
@@ -172,6 +173,7 @@ app.add_typer(probe_group, name="probe", help="Probe assets for live endpoints."
 app.add_typer(harvest_group, name="harvest", help="Harvest and store JavaScript files.")
 app.add_typer(secrets_group, name="secrets", help="Detect and manage leaked secrets.")
 app.add_typer(ports_group, name="ports", help="Discover open ports on assets.")
+app.add_typer(vuln_group, name="vuln", help="Scan for vulnerabilities with ProjectDiscovery nuclei.")
 app.add_typer(screenshot_group, name="screenshot", help="Capture screenshots of live endpoints.")
 app.add_typer(monitor_group, name="monitor", help="Snapshot state and detect changes.")
 app.add_typer(asset_group, name="asset", help="List and inspect discovered assets.")

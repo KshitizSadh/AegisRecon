@@ -243,6 +243,7 @@ def create_app(db: Database, settings: AegisSettings | None = None) -> FastAPI:
             dns_concurrency=effective.dns_concurrency,
             enable_ct_logs=effective.enable_ct_logs,
             ct_timeout=effective.ct_logs_timeout,
+            dns_bin=effective.dnsx_bin,
         )
         try:
             result = engine.run(program_id, sources=body.sources or None, resume=body.resume)

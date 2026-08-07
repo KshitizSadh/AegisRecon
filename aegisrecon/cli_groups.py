@@ -24,9 +24,11 @@ from aegisrecon.core.repositories import (
     ScopeRepository,
 )
 from aegisrecon.engines.dedup import DedupEngine
+from aegisrecon.engines.gitleaks import GitleaksEngine
 from aegisrecon.engines.js import JsHarvestEngine
 from aegisrecon.engines.monitor import MonitorEngine
 from aegisrecon.engines.naabu import PortEngine
+from aegisrecon.engines.nuclei import NucleiEngine
 from aegisrecon.engines.probe import ProbeEngine
 from aegisrecon.engines.recon import ReconEngine
 from aegisrecon.engines.screenshot import ScreenshotEngine
@@ -52,6 +54,7 @@ probe_group = typer.Typer(help="Probe assets for live endpoints.")
 harvest_group = typer.Typer(help="Harvest and store JavaScript files.")
 secrets_group = typer.Typer(help="Detect and manage leaked secrets.")
 ports_group = typer.Typer(help="Discover open ports on assets.")
+vuln_group = typer.Typer(help="Scan for vulnerabilities with ProjectDiscovery nuclei.")
 screenshot_group = typer.Typer(help="Capture screenshots of live endpoints.")
 monitor_group = typer.Typer(help="Snapshot state and detect changes over time.")
 notify_group = typer.Typer(help="Deliver notifications to external channels.")
@@ -334,6 +337,7 @@ def recon_run(
         dns_concurrency=dns_concurrency,
         enable_ct_logs=settings.enable_ct_logs,
         ct_timeout=settings.ct_logs_timeout,
+        dns_bin=settings.dnsx_bin,
     )
     with Progress(
         SpinnerColumn(),
@@ -592,6 +596,34 @@ def secrets_scan(
     )
 
 
+@secrets_group.command("scan-repo")
+def secrets_scan_repo(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    path: Path = typer.Argument(..., help="Git repository or directory to scan with gitleaks."),
+) -> None:
+    """Scan a git repo / directory with the Go gitleaks binary."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    engine = GitleaksEngine(db, binary=settings.gitleaks_bin)
+    result = engine.run(found.id, [Path(path)])
+    console.print(
+        Panel.fit(
+            f"[bold]gitleaks scan complete[/]\n"
+            f"  Sources scanned : {result.sources}\n"
+            f"  Candidates      : {result.candidates}\n"
+            f"  New secrets     : {result.new_secrets}\n"
+            f"  Skipped (no asset / error) : {len(result.errors)}",
+            title=f"Secrets (gitleaks): {found.name}",
+        )
+    )
+    for err in result.errors[:5]:
+        console.print(f"[yellow]  {err}[/]")
+
+
 @secrets_group.command("list")
 def secrets_list(
     ctx: typer.Context,
@@ -640,6 +672,38 @@ def ports_scan(
             f"  New ports     : {result.new_ports}\n"
             f"  Out of scope  : {len(result.errors)}",
             title=f"Ports: {found.name}",
+        )
+    )
+
+
+# --------------------------------------------------------------------------- #
+# `vuln` group
+# --------------------------------------------------------------------------- #
+@vuln_group.command("run")
+def vuln_run(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    severity: str = typer.Option(
+        "low,medium,high,critical", "--severity", help="Nuclei severity filter (comma-separated)."
+    ),
+    tags: str = typer.Option("", "--tags", help="Nuclei template tags filter."),
+) -> None:
+    """Scan endpoints for vulnerabilities with ProjectDiscovery nuclei."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    engine = NucleiEngine(db, binary=settings.nuclei_bin, severity=severity, tags=tags)
+    result = engine.run(found.id)
+    console.print(
+        Panel.fit(
+            f"[bold]Nuclei scan complete[/]\n"
+            f"  Targets scanned : {result.targets}\n"
+            f"  Matches found   : {result.matched}\n"
+            f"  New findings    : {result.new_findings}\n"
+            f"  Errors          : {len(result.errors)}",
+            title=f"Vulnerability scan: {found.name}",
         )
     )
 
@@ -1000,6 +1064,9 @@ def config_show(ctx: typer.Context) -> None:
         ["subfinder binary", settings.subfinder_bin],
         ["naabu binary", settings.naabu_bin],
         ["katana binary", settings.katana_bin],
+        ["dnsx binary", settings.dnsx_bin],
+        ["nuclei binary", settings.nuclei_bin],
+        ["gitleaks binary", settings.gitleaks_bin],
     ]
     _render_table("Configuration", ["Setting", "Value"], rows)
 
@@ -1167,4 +1234,5 @@ __all__ = [
     "schedule_group",
     "collab_group",
     "plugin_group",
+    "vuln_group",
 ]

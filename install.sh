@@ -80,7 +80,7 @@ install_system_python() {
     esac
 }
 
-# -- ProjectDiscovery binaries (httpx, subfinder, naabu, katana) -------------
+# -- ProjectDiscovery binaries + gitleaks (httpx, subfinder, naabu, katana, dnsx, nuclei) --
 install_pd_tools() {
     command -v go >/dev/null 2>&1 || die "Go not found. Install Go (https://go.dev/dl) or retry without --with-tools."
     log "Installing ProjectDiscovery binaries via Go (this can take a few minutes)"
@@ -88,6 +88,9 @@ install_pd_tools() {
     go install -v github.com/projectdiscovery/subfinder/cmd/subfinder@latest
     go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
     go install -v github.com/projectdiscovery/katana/cmd/katana@latest
+    go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+    go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+    go install -v github.com/gitleaks/gitleaks/v8@latest
 
     if [ "$ADD_TO_PATH" -eq 1 ]; then
         if ! grep -qF "go/bin" "$HOME/.bashrc" 2>/dev/null; then

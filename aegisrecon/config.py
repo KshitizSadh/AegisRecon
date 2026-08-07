@@ -75,9 +75,14 @@ class AegisSettings(BaseSettings):
     katana_bin: str = Field(
         default="katana", description="Path or name of the ProjectDiscovery katana binary"
     )
-    use_external_httpx: bool = Field(
-        default=True,
-        description="Shell out to ProjectDiscovery httpx for HTTP probing",
+    dnsx_bin: str = Field(
+        default="dnsx", description="Path or name of the ProjectDiscovery dnsx binary"
+    )
+    nuclei_bin: str = Field(
+        default="nuclei", description="Path or name of the ProjectDiscovery nuclei binary"
+    )
+    gitleaks_bin: str = Field(
+        default="gitleaks", description="Path or name of the Go gitleaks secrets binary"
     )
     auto_install_tools: bool = Field(
         default=False,

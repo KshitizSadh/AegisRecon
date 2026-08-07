@@ -27,6 +27,9 @@ Legend: 🟢 done · 🟡 in progress · ⚪ planned
 - 🟢 Technology fingerprinting ingestion (from `httpx -tech-detect`)
 - 🟢 Screenshot pipeline (`httpx -screenshot` capture)
 - 🟢 Port discovery integration (projectdiscovery `naabu`)
+- 🟢 Vulnerability scanning (projectdiscovery `nuclei`, `vuln run`)
+- 🟢 Repo/directory secret scanning (Go `gitleaks`, `secrets scan-repo`)
+- 🟢 Bulk Go-accelerated DNS (projectdiscovery `dnsx`, dnspython fallback)
 - 🟢 Asset deduplication, aliasing and canonical-name resolution
 
 ## Phase 3 — Monitoring & automation
