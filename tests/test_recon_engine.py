@@ -156,3 +156,42 @@ def _persisted_names(database) -> set[str]:
         assets = AssetRepository(session).list()
         session.close()
     return {a.name for a in assets}
+
+
+def test_provider_timeout_applied_only_to_crtsh(database) -> None:
+    """ct_timeout must not leak into providers with their own timeouts."""
+
+    seen: dict[str, dict] = {}
+
+    class RecordingProvider:
+        @classmethod
+        def create(cls, **kwargs):
+            seen[cls.__name__] = kwargs
+            return _FakeProvider()
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(recon_module, "PASSIVE_SOURCES", {"crtsh": RecordingProvider})
+    engine = recon_module.ReconEngine(database, enable_ct_logs=True, ct_timeout=20.0)
+    try:
+        engine._open_provider("crtsh")
+    finally:
+        monkeypatch.undo()
+    assert seen["RecordingProvider"] == {"timeout": 20.0}
+
+
+def test_subfinder_provider_uses_own_default_timeout(database, monkeypatch) -> None:
+    """Subfinder must keep its own (long) timeout, not the CT timeout."""
+
+    captured: dict = {}
+
+    class CapturingProvider:
+        @classmethod
+        def create(cls, **kwargs):
+            captured.update(kwargs)
+            return _FakeProvider()
+
+    monkeypatch.setattr(recon_module, "PASSIVE_SOURCES", {"subfinder": CapturingProvider})
+    engine = recon_module.ReconEngine(database, enable_ct_logs=True, ct_timeout=20.0)
+    engine._open_provider("subfinder")
+
+    assert captured == {}  # no timeout kwarg forced

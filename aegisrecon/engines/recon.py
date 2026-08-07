@@ -181,7 +181,10 @@ class ReconEngine:
                 f"unknown passive source {source!r}; available: {sorted(PASSIVE_SOURCES)}"
             )
         try:
-            return provider_class.create(timeout=self.ct_timeout)  # type: ignore[attr-defined]
+            kwargs: dict = {}
+            if source == "crtsh":
+                kwargs["timeout"] = self.ct_timeout
+            return provider_class.create(**kwargs)  # type: ignore[attr-defined]
         except EngineError as exc:
             logger.warning("source %s unavailable: %s", source, exc)
             return None
