@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from aegisrecon.core.database import Database
 from aegisrecon.core.models import Port
 from aegisrecon.core.repositories import AssetRepository, PortRepository
-from aegisrecon.exceptions import EngineError, ToolNotFoundError
+from aegisrecon.exceptions import EngineError, ToolNotFoundError, tool_not_found_message
 from aegisrecon.utils.retry import retry
 
 logger = logging.getLogger("aegisrecon.engines.naabu")
@@ -54,9 +54,9 @@ class NaabuScanner:
         resolved = shutil.which(binary)
         if resolved is None:
             raise ToolNotFoundError(
-                f"naabu binary {binary!r} was not found on PATH. "
-                "Install it from https://github.com/projectdiscovery/naabu/releases "
-                "or set AEGISRECON_NAABU_BIN."
+                tool_not_found_message(
+                    binary, "AEGISRECON_NAABU_BIN", "github.com/projectdiscovery/naabu"
+                )
             )
         self.binary_path = resolved
 

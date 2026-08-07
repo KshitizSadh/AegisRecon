@@ -209,10 +209,12 @@ were not installed...  pip install 'httpx[cli]'
 ```
 
 AegisRecon now detects and skips that Python stub and keeps scanning `PATH`
-for the real Go binary. Still, keep the Go binary installed and preferred:
+for the real Go binary. Shortest fix — install the Go binaries and prefer them:
 
 ```bash
-go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
-export PATH="$HOME/go/bin:$PATH"      # ensure Go bin precedes the venv
-file "$(which httpx)"                 # should be a Go (ELF) binary
+aegisrecon tools install                            # fetches httpx, katana, dnsx, ...
+export PATH="$HOME/go/bin:$PATH"                     # ensure Go bin precedes the venv
+file "$(which httpx)"                               # should be a Go (ELF) binary
 ```
+
+Use `aegisrecon tools list` to see which binaries are present/missing.

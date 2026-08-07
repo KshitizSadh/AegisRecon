@@ -59,7 +59,15 @@ pytest -k "scope or recon"   # filter by keyword
 
 All tests are offline — external calls (crt.sh, DNS, httpx) are mocked — so the suite runs anywhere.
 
-## 4. Install ProjectDiscovery tools (optional, for active probing)
+## 4. Install ProjectDiscovery tools (for active probing)
+
+The one-liner — requires Go on PATH, installs every binary AegisRecon uses:
+
+```bash
+aegisrecon tools install
+```
+
+Equivalent manual commands:
 
 ```bash
 go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest

@@ -44,6 +44,15 @@ class ToolNotFoundError(EngineError):
     """Raised when an external binary required by an engine is missing."""
 
 
+def tool_not_found_message(binary: str, env_key: str, project_url: str) -> str:
+    """Compose the standard "binary is missing" hint used across engines."""
+    return (
+        f"external binary {binary!r} was not found on PATH. "
+        f"Install it with `aegisrecon tools install {binary}` via Go "
+        f"({project_url}) or set {env_key} to its location."
+    )
+
+
 class ReconError(EngineError):
     """Raised when a recon discovery step fails irrecoverably."""
 

@@ -12,7 +12,7 @@ import shutil
 import subprocess
 from typing import Any
 
-from aegisrecon.exceptions import ReconError, ToolNotFoundError
+from aegisrecon.exceptions import ReconError, ToolNotFoundError, tool_not_found_message
 from aegisrecon.plugins.base import ReconProvider
 from aegisrecon.utils.retry import retry
 from aegisrecon.utils.validators import is_valid_hostname, normalize_hostname
@@ -32,9 +32,9 @@ class SubfinderProvider(ReconProvider):
         resolved = shutil.which(binary)
         if resolved is None:
             raise ToolNotFoundError(
-                f"subfinder binary {binary!r} was not found on PATH. "
-                "Install it from https://github.com/projectdiscovery/subfinder/releases "
-                "or set AEGISRECON_SUBFINDER_BIN."
+                tool_not_found_message(
+                    binary, "AEGISRECON_SUBFINDER_BIN", "github.com/projectdiscovery/subfinder"
+                )
             )
         self.binary_path = resolved
         self.timeout = timeout

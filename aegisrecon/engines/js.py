@@ -22,7 +22,7 @@ import httpx
 from aegisrecon.core.database import Database
 from aegisrecon.core.models import Asset, AssetFile
 from aegisrecon.core.repositories import AssetFileRepository, AssetRepository
-from aegisrecon.exceptions import ToolNotFoundError
+from aegisrecon.exceptions import ToolNotFoundError, tool_not_found_message
 from aegisrecon.utils.retry import retry
 
 logger = logging.getLogger("aegisrecon.engines.js")
@@ -59,9 +59,9 @@ class KatanaCrawler:
         resolved = shutil.which(binary)
         if resolved is None:
             raise ToolNotFoundError(
-                f"katana binary {binary!r} was not found on PATH. "
-                "Install it from https://github.com/projectdiscovery/katana/releases "
-                "or set AEGISRECON_KATANA_BIN."
+                tool_not_found_message(
+                    binary, "AEGISRECON_KATANA_BIN", "github.com/projectdiscovery/katana"
+                )
             )
         self.binary_path = resolved
 

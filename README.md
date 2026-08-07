@@ -107,6 +107,7 @@ $ aegisrecon recon run Acme
 | `aegisrecon suggest run` | Context-aware manual-testing suggestions |
 | `aegisrecon collab add/list/remove` | Manage program collaborators & roles |
 | `aegisrecon plugin list/scaffold/install` | Discover, create and install plugins |
+| `aegisrecon tools list/install` | Check or install the Go binaries AegisRecon uses |
 | `aegisrecon api serve` | Run the REST API + dashboard server (`[api]` extra) |
 | `aegisrecon config show` | Print effective configuration |
 

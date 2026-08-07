@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from aegisrecon.exceptions import ToolNotFoundError
+from aegisrecon.exceptions import ToolNotFoundError, tool_not_found_message
 from aegisrecon.utils.retry import retry
 
 logger = logging.getLogger("aegisrecon.engines.httpx")
@@ -98,9 +98,9 @@ class HttpxProber:
         resolved = _find_go_binary(binary)
         if resolved is None:
             raise ToolNotFoundError(
-                f"httpx binary {binary!r} was not found on PATH. "
-                "Install it from https://github.com/projectdiscovery/httpx/releases "
-                "or set AEGISRECON_HTTPX_BIN."
+                tool_not_found_message(
+                    binary, "AEGISRECON_HTTPX_BIN", "github.com/projectdiscovery/httpx"
+                )
             )
         self.binary_path = resolved
         logger.debug("using httpx at %s", self.binary_path)

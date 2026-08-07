@@ -9,8 +9,9 @@
 # and any distro where `python3` plus a venv module are available.
 #
 # Usage:
-#   ./install.sh                 # venv + package + tests
-#   ./install.sh --with-tools    # also install ProjectDiscovery binaries via Go
+#   ./install.sh                 # venv + package + tests (also Go tools when Go is present)
+#   ./install.sh --with-tools    # force-install ProjectDiscovery binaries via Go
+#   ./install.sh --no-tools      # skip Go binaries even if Go is installed
 #   ./install.sh --skip-tests    # install only
 #   ./install.sh --no-dev        # install without the dev/test extra
 #   ./install.sh --add-to-path   # append Go bin to ~/.bashrc (for --with-tools)
@@ -23,7 +24,10 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${VENV_DIR:-$REPO_DIR/.venv}"
 GO_BIN="$HOME/go/bin"
 
-WITH_TOOLS=0
+# Auto-install ProjectDiscovery/gitleaks binaries when Go is available, unless
+# the user explicitly opts out with --no-tools. This avoids the confusing
+# "binary not found on PATH" failures after a fresh install.
+WITH_TOOLS=auto
 ADD_TO_PATH=0
 SKIP_TESTS=0
 WITH_DEV=1
@@ -36,6 +40,7 @@ usage() {
 for arg in "$@"; do
     case "$arg" in
         --with-tools) WITH_TOOLS=1 ;;
+        --no-tools) WITH_TOOLS=0 ;;
         --add-to-path) ADD_TO_PATH=1 ;;
         --skip-tests) SKIP_TESTS=1 ;;
         --no-dev) WITH_DEV=0 ;;
@@ -169,7 +174,17 @@ cd "$REPO_DIR"
 log "Installing AegisRecon from $REPO_DIR"
 install_system_python
 install_python_env
-[ "$WITH_TOOLS" -eq 1 ] && install_pd_tools
+
+if [ "$WITH_TOOLS" = "auto" ]; then
+    if command -v go >/dev/null 2>&1; then
+        log "Go detected — installing ProjectDiscovery/gitleaks binaries"
+        install_pd_tools
+    else
+        log "Go not found — skipping optional binaries (run 'aegisrecon tools install' later)"
+    fi
+elif [ "$WITH_TOOLS" -eq 1 ]; then
+    install_pd_tools
+fi
 warn_httpx_collision
 
 if [ "$SKIP_TESTS" -eq 0 ]; then

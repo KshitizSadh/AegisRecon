@@ -24,7 +24,7 @@ from pathlib import Path
 from aegisrecon.core.database import Database
 from aegisrecon.core.models import Secret
 from aegisrecon.core.repositories import SecretRepository
-from aegisrecon.exceptions import EngineError, ToolNotFoundError
+from aegisrecon.exceptions import EngineError, ToolNotFoundError, tool_not_found_message
 
 logger = logging.getLogger("aegisrecon.engines.gitleaks")
 
@@ -62,9 +62,9 @@ class GitleaksScanner:
         resolved = shutil.which(binary)
         if resolved is None:
             raise ToolNotFoundError(
-                f"gitleaks binary {binary!r} was not found on PATH. "
-                "Install it from https://github.com/gitleaks/gitleaks/releases "
-                "or set AEGISRECON_GITLEAKS_BIN."
+                tool_not_found_message(
+                    binary, "AEGISRECON_GITLEAKS_BIN", "github.com/gitleaks/gitleaks"
+                )
             )
         self.binary_path = resolved
 

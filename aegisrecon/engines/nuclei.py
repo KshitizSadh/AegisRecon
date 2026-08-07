@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from aegisrecon.core.database import Database
 from aegisrecon.core.models import Finding, FindingSeverity, FindingStatus
 from aegisrecon.core.repositories import AssetRepository, FindingRepository
-from aegisrecon.exceptions import EngineError, ToolNotFoundError
+from aegisrecon.exceptions import EngineError, ToolNotFoundError, tool_not_found_message
 from aegisrecon.utils.retry import retry
 
 logger = logging.getLogger("aegisrecon.engines.nuclei")
@@ -69,9 +69,9 @@ class NucleiScanner:
         resolved = shutil.which(binary)
         if resolved is None:
             raise ToolNotFoundError(
-                f"nuclei binary {binary!r} was not found on PATH. "
-                "Install it from https://github.com/projectdiscovery/nuclei/releases "
-                "or set AEGISRECON_NUCLEI_BIN."
+                tool_not_found_message(
+                    binary, "AEGISRECON_NUCLEI_BIN", "github.com/projectdiscovery/nuclei"
+                )
             )
         self.binary_path = resolved
         self.severity = severity

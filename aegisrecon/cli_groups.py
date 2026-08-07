@@ -6,6 +6,8 @@ each group reads as a self-contained module.
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 
 import typer
@@ -63,7 +65,9 @@ asset_alias_group = typer.Typer(help="Manage asset aliases.")
 asset_group.add_typer(asset_alias_group, name="alias", help="Manage asset aliases.")
 finding_group = typer.Typer(help="Query and triage findings.")
 schedule_group = typer.Typer(help="Manage recurring scheduled workflows.")
-
+tools_group = typer.Typer(
+    help="Install and check the ProjectDiscovery / gitleaks binaries AegisRecon shells out to."
+)
 
 # --------------------------------------------------------------------------- #
 # Helpers
@@ -1042,6 +1046,95 @@ def schedule_run(ctx: typer.Context) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# `tools` group
+# --------------------------------------------------------------------------- #
+# ProjectDiscovery Go modules that AegisRecon shells out to, plus gitleaks.
+# Order matters: ``go install`` fetches each module into $GOBIN (~/go/bin).
+TOOL_MODULES: dict[str, str] = {
+    "httpx": "github.com/projectdiscovery/httpx/cmd/httpx@latest",
+    "subfinder": "github.com/projectdiscovery/subfinder/cmd/subfinder@latest",
+    "naabu": "github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
+    "katana": "github.com/projectdiscovery/katana/cmd/katana@latest",
+    "dnsx": "github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
+    "nuclei": "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+    "gitleaks": "github.com/gitleaks/gitleaks/v8@latest",
+}
+
+
+def _tool_available(name: str) -> str | None:
+    """Return the resolved path for *name*, or None when missing on PATH."""
+    resolved = shutil.which(name)
+    if resolved is None:
+        return None
+    return resolved
+
+
+@tools_group.command("list")
+def tools_list(ctx: typer.Context) -> None:
+    """Show each external binary and whether AegisRecon can find it."""
+    rows = []
+    for name in TOOL_MODULES:
+        path = _tool_available(name)
+        rows.append([name, "found" if path else "missing", path or "-"])
+    _render_table("External tools", ["Tool", "Status", "Path"], rows)
+    missing = [n for n in TOOL_MODULES if _tool_available(n) is None]
+    if missing:
+        console.print(
+            f"[yellow]Missing: {', '.join(missing)}. "
+            "Run `aegisrecon tools install` to fetch them via Go.[/]"
+        )
+
+
+@tools_group.command("install")
+def tools_install(
+    ctx: typer.Context,
+    names: list[str] = typer.Argument(
+        None, help="Optional list of tools to install (default: all)."
+    ),
+) -> None:
+    """Install the Go binaries via `go install` (requires Go on PATH)."""
+    if not shutil.which("go"):
+        console.print(
+            "[red]Go not found on PATH. Install Go first: https://go.dev/dl[/]"
+        )
+        raise typer.Exit(code=1)
+
+    selected = list(names) if names else list(TOOL_MODULES)
+    unknown = [n for n in selected if n not in TOOL_MODULES]
+    if unknown:
+        raise typer.BadParameter(
+            f"unknown tool(s): {', '.join(unknown)}. Known: {', '.join(TOOL_MODULES)}"
+        )
+
+    go_exe = shutil.which("go")
+    go_bin = str(Path(go_exe).parent) if go_exe else ""
+    for name in selected:
+        console.print(f"[cyan]Installing {name} ...[/]")
+        proc = subprocess.run(
+            ["go", "install", "-v", TOOL_MODULES[name]],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            console.print(
+                f"[red]{name} install failed:[/] {(proc.stderr or proc.stdout or '').strip()[-500:]}"
+            )
+            continue
+        console.print(f"[green]Installed {name}.[/]")
+
+    missing = [n for n in TOOL_MODULES if _tool_available(n) is None]
+    if missing:
+        console.print(
+            f"\n[yellow]Still missing after install: {', '.join(missing)}.[/]\n"
+            "Ensure Go's bin directory is on PATH, e.g.:\n"
+            f'    export PATH="$HOME/go/bin:$PATH"\n'
+            f"    (Go bin dir may also be {go_bin or '$GOBIN'})"
+        )
+        raise typer.Exit(code=1)
+
+
+# --------------------------------------------------------------------------- #
 # `config` group
 # --------------------------------------------------------------------------- #
 @config_group.command("show")
@@ -1235,4 +1328,5 @@ __all__ = [
     "collab_group",
     "plugin_group",
     "vuln_group",
+    "tools_group",
 ]

@@ -21,7 +21,7 @@ from pathlib import Path
 from aegisrecon.core.database import Database
 from aegisrecon.core.models import AssetFile
 from aegisrecon.core.repositories import AssetFileRepository, EndpointRepository
-from aegisrecon.exceptions import ToolNotFoundError
+from aegisrecon.exceptions import ToolNotFoundError, tool_not_found_message
 
 logger = logging.getLogger("aegisrecon.engines.screenshot")
 
@@ -53,9 +53,9 @@ class ScreenshotEngine:
         resolved = shutil.which(binary)
         if resolved is None:
             raise ToolNotFoundError(
-                f"httpx binary {binary!r} was not found on PATH. "
-                "Install it from https://github.com/projectdiscovery/httpx/releases "
-                "or set AEGISRECON_HTTPX_BIN."
+                tool_not_found_message(
+                    binary or "httpx", "AEGISRECON_HTTPX_BIN", "github.com/projectdiscovery/httpx"
+                )
             )
         self.database = database
         self.binary_path = resolved

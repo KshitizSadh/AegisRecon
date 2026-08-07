@@ -112,6 +112,16 @@ Matches are persisted as findings (same triage/report pipeline).
 | --- | --- |
 | `show` | Print effective configuration |
 
+## `aegisrecon tools`
+
+| Command | Example | Purpose |
+| --- | --- | --- |
+| `list` | `aegisrecon tools list` | Show each external binary and whether it's on PATH |
+| `install` | `aegisrecon tools install` | Install all ProjectDiscovery + gitleaks binaries via Go |
+| `install` | `aegisrecon tools install httpx katana` | Install specific binaries |
+
+`tools install` requires Go on PATH; binaries land in `~/go/bin` (add it to PATH).
+
 ## Piping & scripting
 
 UI, logs and progress bars go to **stderr**; only machine-readable data is

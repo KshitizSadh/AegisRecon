@@ -161,6 +161,7 @@ from aegisrecon.cli_groups import (  # noqa: E402, F401
     screenshot_group,
     secrets_group,
     suggest_group,
+    tools_group,
     vuln_group,
 )
 
@@ -184,5 +185,8 @@ app.add_typer(suggest_group, name="suggest", help="Context-aware manual-testing 
 app.add_typer(api_group, name="api", help="Serve the REST API and dashboard.")
 app.add_typer(collab_group, name="collab", help="Manage program collaborators and roles.")
 app.add_typer(plugin_group, name="plugin", help="Discover, scaffold and install plugins.")
+app.add_typer(
+    tools_group, name="tools", help="Install and check the external binaries AegisRecon uses."
+)
 
 __all__ = ["app", "load_settings", "load_database"]
