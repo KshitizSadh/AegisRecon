@@ -31,15 +31,6 @@ from aegisrecon.engines.httpx import HttpxProber, ProbingResult
 
 logger = logging.getLogger("aegisrecon.engines.probe")
 
-DEFAULT_FLAGS = [
-    "-status-code",
-    "-title",
-    "-tech-detect",
-    "-content-type",
-    "-web-server",
-    "-follow-redirects",
-]
-
 
 @dataclass
 class ProbeResult:
@@ -72,7 +63,7 @@ class ProbeEngine:
             raise ValueError(f"no assets to probe for program {program_id}")
 
         result = ProbeResult(program_id=program_id)
-        results = self.prober.probe(hostnames, extra_flags=DEFAULT_FLAGS)
+        results = self.prober.probe(hostnames)
         result.probed = len(results)
         self._persist(program_id, results, result)
         return result
