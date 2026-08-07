@@ -41,6 +41,7 @@ from aegisrecon.reporting.json_report import generate_json_report
 from aegisrecon.reporting.markdown_report import generate_markdown_report
 from aegisrecon.scheduler import VALID_WORKFLOWS, Scheduler
 from aegisrecon.utils.console import console
+from aegisrecon.utils.fs import unique_output_path
 from aegisrecon.utils.validators import is_valid_hostname, normalize_hostname, normalize_list
 
 program_group = typer.Typer(help="Manage engagement programs.")
@@ -100,6 +101,37 @@ def _resolve_asset(repo: AssetRepository, program_id: str, value: str) -> Asset:
         raise typer.BadParameter(
             f"asset {value!r} not found in this program (use `aegisrecon asset list`)"
         ) from None
+
+
+# --------------------------------------------------------------------------- #
+# `api` group
+# --------------------------------------------------------------------------- #
+api_group = typer.Typer(help="Serve the REST API and dashboard.")
+
+
+@api_group.command("serve")
+def api_serve(
+    ctx: typer.Context,
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind address."),
+    port: int = typer.Option(8000, "--port", help="Bind port."),
+) -> None:
+    """Run the FastAPI server (requires the ``api`` extra)."""
+    try:
+        import uvicorn  # type: ignore[import-not-found]
+    except ImportError:
+        raise typer.BadParameter(
+            "the API requires 'fastapi' and 'uvicorn': pip install -e \".[api]\""
+        ) from None
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    from aegisrecon.api import create_app
+
+    app = create_app(db, settings)
+    console.print(
+        f"[green]Serving AegisRecon API on[/] [cyan]http://{host}:{port}[/] "
+        f"(docs at /docs)"
+    )
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 # --------------------------------------------------------------------------- #
@@ -397,6 +429,82 @@ def report_markdown(
         session.close()
     report = generate_markdown_report(db, found.id, settings.reports_path, title=title)
     console.print(f"[green]Markdown report generated:[/] [cyan]{report.path}[/]")
+
+
+@report_group.command("dashboard")
+def report_dashboard(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    title: str | None = typer.Option(None, "--title", help="Report title."),
+) -> None:
+    """Generate a self-contained HTML dashboard for a program."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    from aegisrecon.reporting.dashboard import render_dashboard_file
+    from aegisrecon.reporting.json_report import build_payload
+
+    payload = build_payload(db, found.id)
+    effective_title = title or payload["program"]["name"]
+    path = unique_output_path(
+        settings.reports_path, stem=f"{effective_title}-dashboard", suffix=".html"
+    )
+    render_dashboard_file(path, payload)
+    console.print(f"[green]Dashboard generated:[/] [cyan]{path}[/]")
+    console.print("[yellow]Open in any browser — no server required.[/]")
+
+
+# --------------------------------------------------------------------------- #
+# `suggest` group
+# --------------------------------------------------------------------------- #
+suggest_group = typer.Typer(help="Context-aware manual-testing suggestions.")
+@suggest_group.command("run")
+def suggest_run(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    category: str | None = typer.Option(None, "--category", help="Filter by category."),
+) -> None:
+    """Generate manual-testing suggestions for a program."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    from aegisrecon.reporting.json_report import build_payload
+    from aegisrecon.suggestions import generate_suggestions
+
+    payload = build_payload(db, found.id)
+    suggestions = generate_suggestions(payload)
+    if category:
+        suggestions = [s for s in suggestions if s.category == category]
+    if not suggestions:
+        console.print(
+            f"[yellow]No suggestions matched for {found.name}. "
+            "Run `aegisrecon probe run`, `harvest js`, `ports scan` to build up context.[/]"
+        )
+        return
+    table = Table(title=f"Manual-testing suggestions: {found.name}", show_lines=False, header_style="bold cyan")
+    table.add_column("Risk", overflow="fold")
+    table.add_column("Category", overflow="fold")
+    table.add_column("Suggestion", overflow="fold")
+    for s in suggestions:
+        table.add_row(s.risk.upper(), s.category, s.title)
+    console.print(table)
+    for s in suggestions:
+        console.print(
+            Panel.fit(
+                f"[bold]{s.title}[/] ([{_risk_color(s.risk)}]{s.risk.upper()}[/])\n\n"
+                f"{s.detail}\n"
+                + (f"\nEvidence: {', '.join(s.evidence)}" if s.evidence else ""),
+                title=f"{s.category}",
+            )
+        )
+
+
+def _risk_color(risk: str) -> str:
+    return {"high": "red", "medium": "yellow", "low": "green"}.get(risk, "blue")
 
 
 # --------------------------------------------------------------------------- #
@@ -896,6 +1004,151 @@ def config_show(ctx: typer.Context) -> None:
     _render_table("Configuration", ["Setting", "Value"], rows)
 
 
+# --------------------------------------------------------------------------- #
+# `collab` group
+# --------------------------------------------------------------------------- #
+collab_group = typer.Typer(help="Manage program collaborators and roles.")
+
+
+@collab_group.command("add")
+def collab_add(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    email: str = typer.Argument(..., help="Collaborator email."),
+    role: str = typer.Option("viewer", "--role", "-r", help="viewer|member|admin|owner"),
+) -> None:
+    """Grant a collaborator access to a program."""
+    from aegisrecon.core.models import Collaborator, CollaboratorRole
+    from aegisrecon.core.repositories import CollaboratorRepository
+
+    try:
+        granted = CollaboratorRole(role)
+    except ValueError:
+        raise typer.BadParameter(
+            f"invalid role {role!r}: choose viewer, member, admin, owner"
+        ) from None
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        repo = CollaboratorRepository(session)
+        existing = repo.get_for_program(found.id, email)
+        if existing is not None:
+            repo.update(existing.id, role=granted)
+            session.commit()
+            console.print(
+                f"[yellow]Updated[/] [cyan]{email}[/] -> [green]{granted.value}[/] "
+                f"on [bold]{found.name}[/]"
+            )
+            session.close()
+            return
+        collab = Collaborator(program_id=found.id, email=email, role=granted)
+        repo.create(collab)
+        session.commit()
+        session.close()
+    console.print(
+        f"[green]Granted[/] [cyan]{email}[/] role [bold]{granted.value}[/] on [bold]{found.name}[/]"
+    )
+
+
+@collab_group.command("list")
+def collab_list(ctx: typer.Context, program: str = typer.Argument(..., help="Program id or name.")) -> None:
+    """List collaborators for a program."""
+    from aegisrecon.core.repositories import CollaboratorRepository
+
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        rows = [
+            [c.email, c.role, c.invited_by or "-"]
+            for c in CollaboratorRepository(session).list_for_program(found.id)
+        ]
+        session.close()
+    _render_table(f"Collaborators: {found.name}", ["Email", "Role", "Invited by"], rows)
+
+
+@collab_group.command("remove")
+def collab_remove(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    email: str = typer.Argument(..., help="Collaborator email."),
+) -> None:
+    """Revoke a collaborator's access to a program."""
+    from aegisrecon.core.repositories import CollaboratorRepository
+
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        repo = CollaboratorRepository(session)
+        collab = repo.get_for_program(found.id, email)
+        if collab is None:
+            console.print(f"[yellow]No collaborator {email} on {found.name}.[/]")
+        else:
+            repo.delete(collab.id)
+            session.commit()
+            console.print(f"[green]Removed[/] [cyan]{email}[/] from [bold]{found.name}[/]")
+        session.close()
+
+
+# --------------------------------------------------------------------------- #
+# `plugin` group
+# --------------------------------------------------------------------------- #
+plugin_group = typer.Typer(help="Discover, scaffold and install plugins.")
+
+
+@plugin_group.command("list")
+def plugin_list(ctx: typer.Context) -> None:
+    """List discovered plugins (entry points + local plugin path)."""
+    from aegisrecon.plugins.registry import PluginRegistry
+
+    try:
+        infos = PluginRegistry().discover()
+    except Exception as exc:
+        console.print(f"[red]Plugin discovery failed:[/] {exc}")
+        raise typer.Exit(1) from exc
+    if not infos:
+        console.print("[yellow]No plugins discovered.[/]")
+        return
+    rows = [[i.name, i.version, i.kind, i.source, i.module] for i in infos]
+    _render_table("Discovered plugins", ["Name", "Version", "Kind", "Source", "Module"], rows)
+
+
+@plugin_group.command("scaffold")
+def plugin_scaffold(
+    name: str = typer.Argument(..., help="Plugin name, e.g. my-notifier"),
+    kind: str = typer.Option("Notifier", "--kind", "-k", help="Notifier|Scanner|ReconProvider|Exporter"),
+    author: str = typer.Option("", "--author", "-a", help="Plugin author."),
+    output: Path = typer.Option(None, "--output", "-o", help="Output directory (default: ./<name>)."),  # type: ignore[assignment]
+) -> None:
+    """Generate a minimal plugin package skeleton in the current directory."""
+    from aegisrecon.plugins.scaffold import scaffold_plugin
+
+    target = output or Path(name)
+    try:
+        path = scaffold_plugin(target, name=name, kind=kind, author=author)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from None
+    console.print(f"[green]Scaffolded plugin in[/] [cyan]{path}[/]")
+    console.print(f"[yellow]Install locally with:[/] pip install -e \"{path}\"")
+
+
+@plugin_group.command("install")
+def plugin_install(
+    distribution: str = typer.Argument(..., help="PyPI distribution or local path."),
+) -> None:
+    """Pip-install a distribution and verify its AegisRecon entry point."""
+    from aegisrecon.plugins.registry import PluginError, install_distribution
+
+    try:
+        install_distribution(distribution)
+    except PluginError as exc:
+        console.print(f"[red]Install failed:[/] {exc}")
+        raise typer.Exit(1) from exc
+    console.print(f"[green]Installed and verified:[/] [cyan]{distribution}[/]")
+
+
 __all__ = [
     "program_group",
     "scope_group",
@@ -912,4 +1165,6 @@ __all__ = [
     "finding_group",
     "notify_group",
     "schedule_group",
+    "collab_group",
+    "plugin_group",
 ]

@@ -399,6 +399,38 @@ class ScheduledJob(Resource):
         return value.strip().lower()
 
 
+class CollaboratorRole(str, enum.Enum):
+    """Access level granted to a program collaborator."""
+
+    VIEWER = "viewer"
+    MEMBER = "member"
+    ADMIN = "admin"
+    OWNER = "owner"
+
+
+ROLE_RANK = {CollaboratorRole.VIEWER: 0, CollaboratorRole.MEMBER: 1, CollaboratorRole.ADMIN: 2, CollaboratorRole.OWNER: 3}
+
+
+class Collaborator(Resource):
+    """A user granted access to a program with a specific role."""
+
+    program_id: str = Field(description="Owning program identifier")
+    email: str = Field(min_length=1, max_length=255, description="Collaborator email address")
+    role: CollaboratorRole = Field(
+        default=CollaboratorRole.VIEWER, description="Access role granted to the user"
+    )
+    invited_by: str = Field(default="", max_length=255, description="Who granted access")
+
+    @field_validator("email")
+    @classmethod
+    def _normalise_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+    def can(self, required: CollaboratorRole) -> bool:
+        """Return whether this collaborator meets *required* rank."""
+        return ROLE_RANK[self.role] >= ROLE_RANK[required]
+
+
 class ProgramSummary(BaseModel):
     """Aggregate statistics computed over a program's assets."""
 
@@ -436,6 +468,9 @@ __all__ = [
     "Secret",
     "Snapshot",
     "ScheduledJob",
+    "Collaborator",
+    "CollaboratorRole",
+    "ROLE_RANK",
     "ProgramSummary",
     "Resource",
     "new_uuid",

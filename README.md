@@ -101,6 +101,11 @@ $ aegisrecon recon run Acme
 | `aegisrecon finding list/set-status` | Query and triage findings |
 | `aegisrecon report json` | Versioned JSON engagement report |
 | `aegisrecon report markdown` | Human-readable executive Markdown report |
+| `aegisrecon report dashboard` | Self-contained dark-mode HTML dashboard |
+| `aegisrecon suggest run` | Context-aware manual-testing suggestions |
+| `aegisrecon collab add/list/remove` | Manage program collaborators & roles |
+| `aegisrecon plugin list/scaffold/install` | Discover, create and install plugins |
+| `aegisrecon api serve` | Run the REST API + dashboard server (`[api]` extra) |
 | `aegisrecon config show` | Print effective configuration |
 
 Every command supports `--data-dir` to override state location and `--debug`/`-v`.
@@ -130,9 +135,9 @@ See [docs/architecture/overview.md](docs/architecture/overview.md) and
 ## Roadmap
 
 Foundation, attack-surface intelligence, monitoring and automation are live
-today. Up next: asset deduplication/aliasing, resumable checkpointed scans,
-AI-assisted triage (never verdicts), a dashboard, and a REST API. See
-[ROADMAP.md](ROADMAP.md).
+today, along with manual-testing suggestions, REST API, an offline dashboard,
+team collaboration and a plugin registry. Up next: AI-assisted triage (never
+verdicts). See [ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 

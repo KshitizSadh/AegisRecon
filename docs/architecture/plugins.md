@@ -62,6 +62,33 @@ The recon engine then discovers them by name:
 aegisrecon recon run Acme --source crtsh,mysource
 ```
 
+## Distribution & discovery (`aegisrecon/plugins/`)
+
+Third-party plugins are discovered two ways:
+
+1. **Entry points** — declare the `aegisrecon.plugins` group in your
+   `pyproject.toml`:
+
+   ```toml
+   [project.entry-points.aegisrecon.plugins]
+   mysource = "mypkg.plugin:plugin"
+   ```
+
+   Installed distributions are picked up automatically by `aegisrecon plugin
+   list`.
+
+2. **Local plugins** — point the `AEGISRECON_PLUGIN_PATH` environment variable
+   at a file (or directory containing `plugin.py`) that exports a `plugin`
+   variable.
+
+### CLI
+
+- `aegisrecon plugin list` — show discovered entry-point and local plugins.
+- `aegisrecon plugin scaffold <name> --kind Scanner` — emit a minimal, importable
+  package with the entry point wired up.
+- `aegisrecon plugin install <dist>` — `pip install`s a distribution and verifies
+  its entry point actually loads before reporting success.
+
 ## Guidelines
 
 - Return normalized, de-duplicated data (use `aegisrecon.utils.validators`).

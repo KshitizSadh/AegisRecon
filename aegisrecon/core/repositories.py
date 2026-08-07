@@ -18,6 +18,7 @@ from aegisrecon.core.db_models import (
     AssetFileORM,
     AssetORM,
     Base,
+    CollaboratorORM,
     DnsRecordORM,
     EndpointORM,
     FindingORM,
@@ -36,6 +37,7 @@ from aegisrecon.core.models import (
     Asset,
     AssetAlias,
     AssetFile,
+    Collaborator,
     DnsRecord,
     Endpoint,
     Finding,
@@ -417,6 +419,23 @@ class ScheduledJobRepository(BaseRepository[ScheduledJob, ScheduledJobORM]):
         return [self._to_domain(row) for row in rows]
 
 
+class CollaboratorRepository(BaseRepository[Collaborator, CollaboratorORM]):
+    orm = CollaboratorORM
+    domain = Collaborator
+
+    def get_for_program(self, program_id: str, email: str) -> Collaborator | None:
+        row = self.session.scalars(
+            select(CollaboratorORM).where(
+                CollaboratorORM.program_id == program_id,
+                CollaboratorORM.email == email.lower().strip(),
+            )
+        ).first()
+        return self._to_domain(row) if row else None
+
+    def list_for_program(self, program_id: str) -> list[Collaborator]:
+        return self.list(program_id=program_id)
+
+
 __all__ = [
     "BaseRepository",
     "ProgramRepository",
@@ -435,4 +454,5 @@ __all__ = [
     "SecretRepository",
     "SnapshotRepository",
     "ScheduledJobRepository",
+    "CollaboratorRepository",
 ]

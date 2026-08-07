@@ -49,8 +49,9 @@ dev = [
     "mypy>=1.8",
     "pre-commit>=3.0",
 ]
-extras = [
-    "httpx>=0.24",
+api = [
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.24",
 ]
 
 [project.urls]

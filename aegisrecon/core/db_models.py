@@ -283,6 +283,20 @@ class ScheduledJobORM(Base):
     )
 
 
+class CollaboratorORM(Base):
+    __tablename__ = "collaborators"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    program_id: Mapped[str] = mapped_column(String(36), ForeignKey("programs.id"), index=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    role: Mapped[str] = mapped_column(String(16), default="viewer")
+    invited_by: Mapped[str] = mapped_column(String(255), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
 __all__ = [
     "Base",
     "ProgramORM",
@@ -301,4 +315,5 @@ __all__ = [
     "SecretORM",
     "SnapshotORM",
     "ScheduledJobORM",
+    "CollaboratorORM",
 ]

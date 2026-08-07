@@ -136,6 +136,23 @@ def render_markdown(payload: dict, title: str | None = None) -> str:
         lines += ["_No scope rules defined._"]
     lines.append("")
 
+    lines += ["## Manual-testing suggestions", ""]
+    try:
+        from aegisrecon.suggestions import generate_suggestions
+
+        suggestions = generate_suggestions(payload)
+    except Exception:  # pragma: no cover - defensive: suggestions must never break a report
+        suggestions = []
+    if not suggestions:
+        lines += ["_No suggestions generated — collect more data with `probe run`, `harvest js`, "
+                  "`ports scan`._", ""]
+    else:
+        lines += ["| Risk | Category | Suggestion |", "| --- | --- | --- |"]
+        lines += [
+            f"| {s.risk.upper()} | {s.category} | {s.title} |" for s in suggestions
+        ]
+        lines.append("")
+
     return "\n".join(lines)
 
 

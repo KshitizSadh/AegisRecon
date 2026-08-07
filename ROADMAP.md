@@ -41,15 +41,15 @@ Legend: 🟢 done · 🟡 in progress · ⚪ planned
 
 - 🟢 Finding triage queue (`finding list` / `finding set-status`)
 - 🟢 Executive summaries and report templating (`report markdown`)
+- 🟢 Context-aware suggestions for manual testing (`suggest run`)
 - ⚪ AI-assisted triage (severity estimation, dedup, grouping) — never verdicts
-- ⚪ Context-aware suggestions for manual testing
 
 ## Phase 5 — Platform
 
-- ⚪ REST API
-- ⚪ Dashboard (attack-surface graph, tech breakdown, timelines, dark mode)
-- ⚪ Team collaboration (shared programs, roles)
-- ⚪ Plugin registry / install flow
+- 🟢 REST API (`api serve`, FastAPI, requires `[api]` extra)
+- 🟢 Dashboard (`report dashboard` static HTML, dark mode, offline)
+- 🟢 Team collaboration (`collab add/list/remove`, role-based auth)
+- 🟢 Plugin registry / install flow (`plugin list/scaffold/install`)
 - 🟢 Packaging: Docker, docker-compose, DevContainer
 
 ## Always

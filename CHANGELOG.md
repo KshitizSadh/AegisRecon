@@ -48,7 +48,32 @@ All notable changes to AegisRecon are documented here. This project follows
   checkpoints persist per-`(source, root)` discovery progress and the hostname
   set; `recon run --resume` continues an interrupted scan and clears the
   checkpoint on completion.
-- Expanded test suite (180 tests) covering dedup and checkpoint/resume.
+- **Manual-testing suggestions** (`suggestions.py`): non-AI heuristic engine that
+  reads the report payload (ports, technologies, findings, endpoints) and emits
+  ranked, context-aware testing ideas (Spring Actuator, GraphQL/Swagger exposure,
+  DB/SMB/Elasticsearch listeners, leaked credentials). New `suggest run
+  [--category]` command; JSON payload now carries per-asset `ports`.
+- **Static dashboard** (`reporting/dashboard.py`): `report dashboard` renders a
+  self-contained, deterministic dark-mode HTML page (stat cards, severity grid,
+  findings, assets + technologies) with no external dependencies or network.
+- **REST API** (`api.py`): FastAPI app exposed via `api serve --host --port`.
+  Read-first endpoints for programs/scope/assets/findings plus reports,
+  dashboards and suggestions; state-changing actions (run recon, triage, manage
+  scope) require a program role from the `X-Aegis-Email` header. Ships as the
+  optional `[api]` extra (fastapi, uvicorn).
+- **Team collaboration**: `Collaborator` entity/repo with a `viewer` < `member`
+  < `admin` < `owner` hierarchy (`auth.py`). Program `owner` is implicit owner.
+  New `collab add/list/remove` commands and role-guarded API routes.
+- **Plugin registry / install** (`plugins/registry.py`, `plugins/scaffold.py`):
+  discovers plugins via the `aegisrecon.plugins` entry-point group and the
+  `AEGISRECON_PLUGIN_PATH` local directory; `plugin list`, `plugin scaffold`
+  (emits importable package + pyproject entry point), and `plugin install`
+  (pip-installs and verifies the entry point loads).
+- Expanded test suite: +214 tests total, covering suggestions, dashboard, API,
+  auth and the plugin registry/scaffold.
+- **Global options fix**: `--debug`, `-v/--verbose` and `--data-dir` are now
+  accepted anywhere on the command line (`AegisTyperGroup` hoists them before
+  subcommand parsing).
 
 ## [0.1.0] - 2026-08-05
 - First working end-to-end pipeline: init → program → scope → recon → report.

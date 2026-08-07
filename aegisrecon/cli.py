@@ -142,12 +142,15 @@ def init(
 
 # Sub-command groups are registered at import time to keep this file minimal.
 from aegisrecon.cli_groups import (  # noqa: E402, F401
+    api_group,
     asset_group,
+    collab_group,
     config_group,
     finding_group,
     harvest_group,
     monitor_group,
     notify_group,
+    plugin_group,
     ports_group,
     probe_group,
     program_group,
@@ -157,6 +160,7 @@ from aegisrecon.cli_groups import (  # noqa: E402, F401
     scope_group,
     screenshot_group,
     secrets_group,
+    suggest_group,
 )
 
 app.add_typer(program_group, name="program", help="Manage engagement programs.")
@@ -174,5 +178,9 @@ app.add_typer(asset_group, name="asset", help="List and inspect discovered asset
 app.add_typer(finding_group, name="finding", help="Query and triage findings.")
 app.add_typer(notify_group, name="notify", help="Deliver notifications to external channels.")
 app.add_typer(schedule_group, name="schedule", help="Manage recurring scheduled workflows.")
+app.add_typer(suggest_group, name="suggest", help="Context-aware manual-testing suggestions.")
+app.add_typer(api_group, name="api", help="Serve the REST API and dashboard.")
+app.add_typer(collab_group, name="collab", help="Manage program collaborators and roles.")
+app.add_typer(plugin_group, name="plugin", help="Discover, scaffold and install plugins.")
 
 __all__ = ["app", "load_settings", "load_database"]

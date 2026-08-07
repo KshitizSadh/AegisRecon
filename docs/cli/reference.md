@@ -47,8 +47,47 @@ filtered through program scope before being stored.
 | Command | Example | Purpose |
 | --- | --- | --- |
 | `json` | `aegisrecon report json Acme --title "Weekly"` | Generate a JSON report |
+| `markdown` | `aegisrecon report markdown Acme` | Generate an executive summary |
+| `dashboard` | `aegisrecon report dashboard Acme` | Generate a self-contained dark-mode HTML dashboard |
 
 Reports are written to `<data-dir>/reports/` and recorded in the database.
+
+## `aegisrecon suggest`
+
+| Command | Example | Purpose |
+| --- | --- | --- |
+| `run` | `aegisrecon suggest run Acme` | Context-aware manual-testing suggestions |
+| `run` | `aegisrecon suggest run Acme --category secrets` | Filter by category |
+
+## `aegisrecon collab`
+
+| Command | Example | Purpose |
+| --- | --- | --- |
+| `add` | `aegisrecon collab add Acme alice@x.com --role member` | Grant access |
+| `list` | `aegisrecon collab list Acme` | List collaborators |
+| `remove` | `aegisrecon collab remove Acme alice@x.com` | Revoke access |
+
+Roles ascend `viewer` → `member` → `admin` → `owner`; the program `owner` is the
+implicit owner.
+
+## `aegisrecon plugin`
+
+| Command | Example | Purpose |
+| --- | --- | --- |
+| `list` | `aegisrecon plugin list` | Discover entry-point + local plugins |
+| `scaffold` | `aegisrecon plugin scaffold my-notifier --kind Notifier` | Emit a plugin skeleton |
+| `install` | `aegisrecon plugin install my-notifier` | pip-install + verify entry point |
+
+## `aegisrecon api`
+
+| Command | Example | Purpose |
+| --- | --- | --- |
+| `serve` | `aegisrecon api serve --host 0.0.0.0 --port 8000` | Run the REST API + dashboard |
+
+Requires the optional `[api]` extra (`pip install -e ".[api]"`). Interactive
+docs at `/docs`; the HTML dashboard is served per program at
+`/programs/{id}/dashboard`. State-changing endpoints are role-guarded via the
+`X-Aegis-Email` header.
 
 ## `aegisrecon config`
 

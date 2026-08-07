@@ -22,6 +22,7 @@ from aegisrecon.core.repositories import (
     EndpointRepository,
     FindingRepository,
     IpRecordRepository,
+    PortRepository,
     ProgramRepository,
     ReportRepository,
     ScopeRepository,
@@ -100,6 +101,10 @@ def build_payload(database: Database, program_id: str) -> dict[str, Any]:
                     "technologies": [
                         t.model_dump(mode="json")
                         for t in TechnologyRepository(session).list(asset_id=asset.id)
+                    ],
+                    "ports": [
+                        p.model_dump(mode="json")
+                        for p in PortRepository(session).list(asset_id=asset.id)
                     ],
                 }
             )
