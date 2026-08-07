@@ -70,9 +70,9 @@ go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
 go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 go install -v github.com/gitleaks/gitleaks/v8@latest
 
-# Add Go's bin directory to PATH
-export PATH="$PATH:$HOME/go/bin"
-echo 'export PATH="$PATH:$HOME/go/bin"' >> ~/.bashrc
+# Add Go's bin directory to PATH (prepend so it is found before any venv shim)
+export PATH="$HOME/go/bin:$PATH"
+echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.bashrc
 ```
 
 Each tool is optional and maps to one command group:

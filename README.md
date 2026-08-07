@@ -133,6 +133,7 @@ See [docs/architecture/overview.md](docs/architecture/overview.md) and
 - [Scope & safety model](docs/architecture/scope.md)
 - [CLI reference](docs/cli/reference.md)
 - [Plugin development](docs/architecture/plugins.md)
+- [Skroutz bug bounty playbook](docs/guides/skroutz.md)
 
 ## Roadmap
 

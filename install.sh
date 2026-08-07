@@ -102,6 +102,23 @@ install_pd_tools() {
     echo "    export PATH=\"$GO_BIN:\$PATH\""
 }
 
+# Detect the Python 'httpx[cli]' console script shadowing the Packaged Go binary.
+# The optional [api] extra pulls in the Python httpx library, whose 'httpx' CLI
+# entry point can precede ~/go/bin/httpx on PATH and break probe run.
+warn_httpx_collision() {
+    if ! command -v httpx >/dev/null 2>&1; then
+        return
+    fi
+    local resolved head
+    resolved="$(command -v httpx)"
+    head="$(head -c 2 "$resolved" 2>/dev/null || true)"
+    if [ "$head" = "#!" ] && head -n 1 "$resolved" 2>/dev/null | grep -qi python; then
+        warn "Detected the Python \`httpx\` client at $resolved — it will shadow the Go binary."
+        echo "    Ensure $GO_BIN comes before the venv on PATH (e.g. export PATH=\"$GO_BIN:\$PATH\"),"
+        echo "    or set AEGISRECON_HTTPX_BIN to the ProjectDiscovery httpx path."
+    fi
+}
+
 # -- Python virtualenv + package ---------------------------------------------
 install_python_env() {
     command -v python3 >/dev/null 2>&1 || die "python3 not found."
@@ -153,6 +170,7 @@ log "Installing AegisRecon from $REPO_DIR"
 install_system_python
 install_python_env
 [ "$WITH_TOOLS" -eq 1 ] && install_pd_tools
+warn_httpx_collision
 
 if [ "$SKIP_TESTS" -eq 0 ]; then
     run_tests
@@ -164,6 +182,8 @@ cat <<'EOF'
  Next steps:
    • Activate the environment:
         source .venv/bin/activate
+   • If you installed Go tools (--with-tools), put them on PATH first:
+        export PATH="$HOME/go/bin:$PATH"     # keep Go httpx ahead of the venv
    • Start a real engagement:
         export AEGISRECON_DATA_DIR=~/aegisrecon-lab
         aegisrecon init
