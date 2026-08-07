@@ -27,6 +27,7 @@ from aegisrecon.core.models import (
     utcnow,
 )
 from aegisrecon.core.repositories import (
+    AssetAliasRepository,
     AssetRepository,
     DnsRecordRepository,
     IpRecordRepository,
@@ -34,11 +35,12 @@ from aegisrecon.core.repositories import (
     ScopeRepository,
 )
 from aegisrecon.core.scope import ScopeValidator
+from aegisrecon.engines.checkpoint import Checkpoint, CheckpointStore
 from aegisrecon.engines.dns import DnsResolver
 from aegisrecon.engines.passive import CertificateTransparencyProvider
 from aegisrecon.engines.subfinder import SubfinderProvider
-from aegisrecon.exceptions import EngineError, ReconError
-from aegisrecon.utils.validators import is_valid_domain
+from aegisrecon.exceptions import EngineError, ReconError, StorageError
+from aegisrecon.utils.validators import is_valid_domain, normalize_hostname
 
 logger = logging.getLogger("aegisrecon.engines.recon")
 
@@ -83,8 +85,17 @@ class ReconEngine:
         self.ct_timeout = ct_timeout
 
     # -- public API ------------------------------------------------------
-    def run(self, program_id: str, sources: list[str] | None = None) -> ReconResult:
+    def run(
+        self,
+        program_id: str,
+        sources: list[str] | None = None,
+        resume: bool = False,
+    ) -> ReconResult:
         """Execute a full discovery pass for *program_id*.
+
+        Args:
+            resume: When True, continue from a previously saved checkpoint
+                instead of walking every passive source/root from scratch.
 
         Raises:
             EntityNotFoundError: When the program does not exist.
@@ -101,11 +112,31 @@ class ReconEngine:
         result = ReconResult(program_id=program_id)
         enabled_sources = sources or self._default_sources()
 
-        candidate_hostnames: set[str] = set()
+        store = CheckpointStore(self.database.path.parent)
+        ckpt = store.load(program_id) if resume else Checkpoint()
+        ckpt.program_id = program_id
+
+        candidate_hostnames: set[str] = set(ckpt.hostnames)
+        resumed = 0
         for source in enabled_sources:
-            candidates = self._collect(source, roots)
-            result.discovered += len(candidates)
-            candidate_hostnames.update(candidates)
+            provider = self._open_provider(source)
+            try:
+                for root in roots:
+                    if ckpt.is_done(source, root):
+                        resumed += 1
+                        continue
+                    found = self._collect_root(provider, root)
+                    result.discovered += len(found)
+                    candidate_hostnames.update(found)
+                    ckpt.hostnames = candidate_hostnames
+                    ckpt.mark_done(source, root)
+                    self._persist_checkpoint(store, ckpt)
+            finally:
+                if provider is not None:
+                    provider.close()
+
+        if resumed:
+            logger.info("recon resumed: %d (source, root) units skipped", resumed)
 
         allowed = [h for h in candidate_hostnames if validator.is_allowed(h)]
         result.in_scope = len(allowed)
@@ -117,6 +148,8 @@ class ReconEngine:
         )
 
         self._persist(program_id, allowed, result)
+        if allowed:
+            store.clear(program_id)
         return result
 
     def ingest(self, program_id: str, hostnames: list[str]) -> ReconResult:
@@ -140,28 +173,35 @@ class ReconEngine:
             sources.append("crtsh")
         return sources
 
-    def _collect(self, source: str, roots: list[str]) -> set[str]:
+    def _open_provider(self, source: str):
+        """Return a provider instance for *source*, or ``None`` when unavailable."""
         provider_class = PASSIVE_SOURCES.get(source)
         if provider_class is None:
             raise ReconError(
                 f"unknown passive source {source!r}; available: {sorted(PASSIVE_SOURCES)}"
             )
-
         try:
-            provider = provider_class.create(timeout=self.ct_timeout)  # type: ignore[attr-defined]
+            return provider_class.create(timeout=self.ct_timeout)  # type: ignore[attr-defined]
         except EngineError as exc:
             logger.warning("source %s unavailable: %s", source, exc)
-            return set()
+            return None
+
+    def _collect_root(self, provider, root: str) -> set[str]:
+        """Query a single provider for one root domain, tolerating failures."""
         found: set[str] = set()
+        if provider is None:
+            return found
         try:
-            for root in roots:
-                try:
-                    found.update(provider.query(root))
-                except ReconError as exc:
-                    logger.warning("source %s failed for %s: %s", source, root, exc)
-        finally:
-            provider.close()
+            found.update(provider.query(root))
+        except ReconError as exc:
+            logger.warning("passive source failed for %s: %s", root, exc)
         return found
+
+    def _persist_checkpoint(self, store: CheckpointStore, ckpt: Checkpoint) -> None:
+        try:
+            store.save(ckpt)
+        except StorageError as exc:
+            logger.warning("could not save checkpoint: %s", exc)
 
     def _root_domains(self, program: Program, validator: ScopeValidator) -> list[str]:
         """Derive authorized root domains from include wildcard/exact rules."""
@@ -194,11 +234,18 @@ class ReconEngine:
         seen_at = utcnow()
         with self.database.session() as session:
             assets = AssetRepository(session)
+            aliases = AssetAliasRepository(session)
             dns_records = DnsRecordRepository(session)
             ip_records = IpRecordRepository(session)
 
             for hostname, resolution in resolutions.items():
-                existing = assets.get_by_name(program_id, hostname)
+                normalized = normalize_hostname(hostname)
+                existing = assets.get_by_name(program_id, normalized)
+                if existing is None:
+                    alias = aliases.get_by_name(program_id, normalized)
+                    if alias is not None:
+                        existing = assets.get(alias.asset_id)
+
                 if existing is None:
                     asset = assets.create(
                         Asset(
@@ -211,8 +258,8 @@ class ReconEngine:
                     )
                     result.new_assets += 1
                 else:
-                    assets.update(existing.id, last_seen_at=seen_at, source="recon")
                     asset = existing
+                    assets.update(asset.id, last_seen_at=seen_at, source="recon")
                     result.updated_assets += 1
 
                 self._store_dns(session, asset.id, resolution, dns_records, ip_records, result)

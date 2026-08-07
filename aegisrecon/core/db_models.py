@@ -77,6 +77,19 @@ class AssetORM(Base):
     )
 
 
+class AssetAliasORM(Base):
+    __tablename__ = "asset_aliases"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    program_id: Mapped[str] = mapped_column(String(36), ForeignKey("programs.id"), index=True)
+    asset_id: Mapped[str] = mapped_column(String(36), ForeignKey("assets.id"), index=True)
+    name: Mapped[str] = mapped_column(String(2048), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
 class DnsRecordORM(Base):
     __tablename__ = "dns_records"
 
@@ -275,6 +288,7 @@ __all__ = [
     "ProgramORM",
     "ScopeEntryORM",
     "AssetORM",
+    "AssetAliasORM",
     "DnsRecordORM",
     "IpRecordORM",
     "EndpointORM",

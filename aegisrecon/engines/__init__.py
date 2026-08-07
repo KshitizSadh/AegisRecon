@@ -1,6 +1,8 @@
 """Engines subpackage: recon, DNS, HTTP probing, passive intelligence."""
 
 from aegisrecon.engines import (
+    checkpoint,
+    dedup,
     dns,
     httpx,
     js,
@@ -16,6 +18,8 @@ from aegisrecon.engines import (
 )
 
 __all__ = [
+    "checkpoint",
+    "dedup",
     "dns",
     "httpx",
     "js",

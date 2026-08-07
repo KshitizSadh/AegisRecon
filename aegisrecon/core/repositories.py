@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from aegisrecon.core.db_models import (
+    AssetAliasORM,
     AssetFileORM,
     AssetORM,
     Base,
@@ -33,6 +34,7 @@ from aegisrecon.core.db_models import (
 )
 from aegisrecon.core.models import (
     Asset,
+    AssetAlias,
     AssetFile,
     DnsRecord,
     Endpoint,
@@ -168,6 +170,9 @@ class AssetRepository(BaseRepository[Asset, AssetORM]):
         existing = self.get_by_name(program_id, normalized)
         if existing is not None:
             return existing
+        alias = AssetAliasRepository(self.session).get_by_name(program_id, normalized)
+        if alias is not None:
+            return self.get(alias.asset_id)
         asset = Asset(program_id=program_id, name=normalized, **fields)
         self.create(asset)
         return asset
@@ -184,6 +189,35 @@ class AssetRepository(BaseRepository[Asset, AssetORM]):
         row.last_seen_at = utcnow()
         self.session.flush()
         return self._to_domain(row)
+
+
+class AssetAliasRepository(BaseRepository[AssetAlias, AssetAliasORM]):
+    orm = AssetAliasORM
+    domain = AssetAlias
+
+    def get_by_name(self, program_id: str, name: str) -> AssetAlias | None:
+        row = self.session.scalars(
+            select(AssetAliasORM).where(
+                AssetAliasORM.program_id == program_id,
+                AssetAliasORM.name == normalize_hostname(name),
+            )
+        ).first()
+        return self._to_domain(row) if row else None
+
+    def register(self, asset: Asset, name: str) -> AssetAlias | None:
+        """Register *name* as an alias of *asset*, returning the created row.
+
+        Returns ``None`` when the alias already resolves to the same asset.
+        """
+        normalized = normalize_hostname(name)
+        existing = self.get_by_name(asset.program_id, normalized)
+        if existing is not None:
+            return None
+        alias = AssetAlias(
+            program_id=asset.program_id, asset_id=asset.id, name=normalized
+        )
+        self.create(alias)
+        return alias
 
 
 class DnsRecordRepository(BaseRepository[DnsRecord, DnsRecordORM]):
@@ -221,6 +255,12 @@ class EndpointRepository(BaseRepository[Endpoint, EndpointORM]):
             EndpointORM.url == url,
         )
         return self.session.scalar(stmt) is not None
+
+    def get_by_url(self, asset_id: str, url: str) -> Endpoint | None:
+        row = self.session.scalars(
+            select(EndpointORM).where(EndpointORM.asset_id == asset_id, EndpointORM.url == url)
+        ).first()
+        return self._to_domain(row) if row else None
 
     def list_for_program(self, program_id: str) -> list[Endpoint]:
         stmt = (
@@ -382,6 +422,7 @@ __all__ = [
     "ProgramRepository",
     "ScopeRepository",
     "AssetRepository",
+    "AssetAliasRepository",
     "DnsRecordRepository",
     "IpRecordRepository",
     "EndpointRepository",

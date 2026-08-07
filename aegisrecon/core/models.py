@@ -357,6 +357,24 @@ class Snapshot(Resource):
         return value.strip().lower()
 
 
+class AssetAlias(Resource):
+    """An alternate name for a canonical asset.
+
+    Alias registry powers deduplication: a variant hostname (IDN spelling,
+    trailing dot, or a manually curated ``www.`` mapping) resolves to the
+    canonical :class:`Asset` it belongs to instead of creating a duplicate.
+    """
+
+    program_id: str = Field(description="Owning program identifier")
+    asset_id: str = Field(description="Canonical asset the alias resolves to")
+    name: str = Field(min_length=1, max_length=2048, description="Variant hostname")
+
+    @field_validator("name")
+    @classmethod
+    def _normalise_name(cls, value: str) -> str:
+        return value.strip().rstrip(".").lower()
+
+
 class ScheduledJob(Resource):
     """A recurring workflow to run for a program."""
 
@@ -402,6 +420,7 @@ __all__ = [
     "ScopeAction",
     "Asset",
     "AssetKind",
+    "AssetAlias",
     "DnsRecord",
     "DnsRecordType",
     "IpRecord",

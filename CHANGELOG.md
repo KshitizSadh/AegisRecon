@@ -38,8 +38,17 @@ All notable changes to AegisRecon are documented here. This project follows
   `finding list`/`set-status`, `notify list`/`test`, `schedule add`/`list`/`run`,
   `report markdown`. `recon run` now supports `subfinder` as a passive source.
 - Config keys `naabu_bin`, `katana_bin` and `screenshot_dir`.
-- Expanded test suite (165 tests) covering the new engines, notifiers, reports
-  and scheduler.
+- **Asset deduplication / canonical names** (`engines/dedup.py`): `canonical_key`
+  collapses case, trailing-dot and IDN/punycode spellings; a new `AssetAlias`
+  entity routes variant hostnames to a canonical asset on ingest. New commands:
+  `asset list --show-aliases`, `asset alias add`, `asset dedup [--dry-run]
+  [--www-strip]` (evidence-based `www.` folding by default, with orphan
+  child-record re-parenting and duplicate collision handling).
+- **Resumable scans** (`engines/checkpoint.py`): SQLite-backed-free JSON
+  checkpoints persist per-`(source, root)` discovery progress and the hostname
+  set; `recon run --resume` continues an interrupted scan and clears the
+  checkpoint on completion.
+- Expanded test suite (180 tests) covering dedup and checkpoint/resume.
 
 ## [0.1.0] - 2026-08-05
 - First working end-to-end pipeline: init → program → scope → recon → report.

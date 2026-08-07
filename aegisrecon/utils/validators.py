@@ -88,6 +88,50 @@ def normalize_hostname(value: str) -> str:
     return value.strip().rstrip(".").lower()
 
 
+def strip_www_prefix(value: str) -> str:
+    """Return *value* without a leading ``www.`` label, if present."""
+    candidate = normalize_hostname(value)
+    if candidate.startswith("www."):
+        return candidate[4:]
+    return candidate
+
+
+def _idna_alabel(value: str) -> str:
+    """Encode a hostname to its ASCII A-label (punycode) form.
+
+    Prefers the ``idna`` package (IDNA 2008 / UTS-46, which correctly folds
+    characters such as ``ß``). Falls back to :mod:`encodings` IDNA 2003 when the
+    package is unavailable and passes ASCII/plain text through untouched.
+    """
+    try:
+        import idna  # type: ignore[import-not-found]
+
+        return idna.encode(value, uts46=True).decode("ascii")
+    except Exception:  # noqa: BLE001 - fall back for unusual input/installations
+        value = value.encode("idna").decode("ascii")
+        return value
+
+
+def canonical_key(value: str) -> str:
+    """Map a hostname to a canonical key that collapses cosmetic variants.
+
+    Rules applied (idempotent, pure):
+        * strip surrounding whitespace and trailing dots
+        * lowercase
+        * encode IDN spellings to their ASCII *punycode* form, so ``fußball.de``
+          and ``xn--fuball-cta.de`` collide into a single key
+
+    ``www.`` is intentionally **not** stripped here: the apex and ``www`` host
+    are frequently distinct systems. Use :func:`strip_www_prefix` explicitly
+    when a www-merge is desired, and only when backed by evidence.
+    """
+    candidate = normalize_hostname(value)
+    try:
+        return _idna_alabel(candidate)
+    except UnicodeError:
+        return candidate
+
+
 def normalize_list(values: list[str] | None) -> list[str]:
     """Normalize a list of raw strings, dropping empty entries and duplicates.
 
@@ -105,5 +149,7 @@ __all__ = [
     "is_valid_ip",
     "is_valid_url",
     "normalize_hostname",
+    "strip_www_prefix",
+    "canonical_key",
     "normalize_list",
 ]

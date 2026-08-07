@@ -14,14 +14,16 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 from rich.table import Table
 
 from aegisrecon.cli import load_database, load_settings
-from aegisrecon.core.models import Program, ScheduledJob, ScopeAction, ScopeEntry, ScopeKind
+from aegisrecon.core.models import Asset, Program, ScheduledJob, ScopeAction, ScopeEntry, ScopeKind
 from aegisrecon.core.repositories import (
+    AssetAliasRepository,
     AssetRepository,
     FindingRepository,
     ProgramRepository,
     ScheduledJobRepository,
     ScopeRepository,
 )
+from aegisrecon.engines.dedup import DedupEngine
 from aegisrecon.engines.js import JsHarvestEngine
 from aegisrecon.engines.monitor import MonitorEngine
 from aegisrecon.engines.naabu import PortEngine
@@ -53,6 +55,8 @@ screenshot_group = typer.Typer(help="Capture screenshots of live endpoints.")
 monitor_group = typer.Typer(help="Snapshot state and detect changes over time.")
 notify_group = typer.Typer(help="Deliver notifications to external channels.")
 asset_group = typer.Typer(help="List and inspect discovered assets.")
+asset_alias_group = typer.Typer(help="Manage asset aliases.")
+asset_group.add_typer(asset_alias_group, name="alias", help="Manage asset aliases.")
 finding_group = typer.Typer(help="Query and triage findings.")
 schedule_group = typer.Typer(help="Manage recurring scheduled workflows.")
 
@@ -80,6 +84,22 @@ def _render_table(title: str, columns: list[str], rows: list[list[str]]) -> None
     for row in rows:
         table.add_row(*row)
     console.print(table)
+
+
+def _resolve_asset(repo: AssetRepository, program_id: str, value: str) -> Asset:
+    """Resolve an asset by id, canonical name, or alias within a program."""
+    try:
+        return repo.get(value)
+    except EntityNotFoundError:
+        found = repo.get_by_name(program_id, value)
+        if found is not None:
+            return found
+        alias = AssetAliasRepository(repo.session).get_by_name(program_id, normalize_hostname(value))
+        if alias is not None:
+            return repo.get(alias.asset_id)
+        raise typer.BadParameter(
+            f"asset {value!r} not found in this program (use `aegisrecon asset list`)"
+        ) from None
 
 
 # --------------------------------------------------------------------------- #
@@ -264,6 +284,9 @@ def recon_run(
         None, "--source", help="Comma-separated sources (default: crtsh)."
     ),
     dns_concurrency: int = typer.Option(50, "--dns-concurrency", help="Parallel DNS workers."),
+    resume: bool = typer.Option(
+        False, "--resume", help="Continue from a previously saved scan checkpoint."
+    ),
 ) -> None:
     """Run passive discovery and DNS resolution for a program."""
     settings = load_settings(ctx)
@@ -288,7 +311,7 @@ def recon_run(
         console=console,
     ) as progress:
         task = progress.add_task(f"Recon for {found.name}", total=None)
-        result = engine.run(program_id, sources=source_list)
+        result = engine.run(program_id, sources=source_list, resume=resume)
         progress.update(task, completed=1)
 
     console.print(
@@ -576,6 +599,9 @@ def monitor_run(
 def asset_list(
     ctx: typer.Context,
     program: str = typer.Argument(..., help="Program id or name."),
+    show_aliases: bool = typer.Option(
+        False, "--show-aliases", help="Include aliases resolving to each asset."
+    ),
 ) -> None:
     """List all assets belonging to a program."""
     settings = load_settings(ctx)
@@ -583,12 +609,17 @@ def asset_list(
     with db.session() as session:
         found = _resolve_program(ProgramRepository(session), program)
         assets = AssetRepository(session).list(program_id=found.id)
+        aliases: dict[str, list[str]] = {}
+        if show_aliases:
+            for alias in AssetAliasRepository(session).list(program_id=found.id):
+                aliases.setdefault(alias.asset_id, []).append(alias.name)
         rows = [
             [
                 a.name,
-                a.kind.value,
+                a.kind,
                 a.source,
                 a.last_seen_at.isoformat() if a.last_seen_at else "",
+                ", ".join(sorted(x for x in aliases.get(a.id, []) if x != a.name)),
             ]
             for a in assets
         ]
@@ -596,7 +627,82 @@ def asset_list(
     if not rows:
         console.print(f"[yellow]No assets for {found.name}. Run `aegisrecon recon run` first.[/]")
         return
-    _render_table(f"Assets: {found.name}", ["Name", "Kind", "Source", "Last seen"], rows)
+    columns = ["Name", "Kind", "Source", "Last seen"]
+    if show_aliases:
+        columns.append("Aliases")
+    _render_table(f"Assets: {found.name}", columns, rows)
+
+
+asset_alias_group = typer.Typer(help="Manage asset aliases.")
+asset_group.add_typer(asset_alias_group, name="alias", help="Manage asset aliases.")
+
+
+@asset_alias_group.command("add")
+def asset_alias_add(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    name: str = typer.Argument(..., help="Canonical asset id or name."),
+    aliases: list[str] = typer.Argument(..., help="Variant hostnames to bind."),
+) -> None:
+    """Bind one or more variant hostnames as aliases of a canonical asset."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        target = _resolve_asset(AssetRepository(session), found.id, name)
+        repo = AssetAliasRepository(session)
+        bound = 0
+        for alias in aliases:
+            if repo.register(target, alias) is not None:
+                bound += 1
+        session.commit()
+        session.close()
+    console.print(
+        f"[green]Bound {bound} alias(es) to[/] [cyan]{target.name}[/] "
+        f"({', '.join(aliases)})"
+    )
+
+
+@asset_group.command("dedup")
+def asset_dedup(
+    ctx: typer.Context,
+    program: str = typer.Argument(..., help="Program id or name."),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Report candidates without modifying anything."
+    ),
+    www_strip: bool = typer.Option(
+        False,
+        "--www-strip",
+        help="Merge www-prefixed hosts by name even without shared IP evidence.",
+    ),
+) -> None:
+    """Find and merge duplicate assets, reparenting child records."""
+    settings = load_settings(ctx)
+    db = load_database(settings)
+    with db.session() as session:
+        found = _resolve_program(ProgramRepository(session), program)
+        session.close()
+    engine = DedupEngine(db)
+    result = engine.run(found.id, dry_run=dry_run, www_strip=www_strip)
+    mode = "dry-run" if result.dry_run else "applied"
+    status = "would merge" if result.dry_run else "merged"
+    console.print(
+        Panel.fit(
+            f"[bold]Asset dedup ({mode})[/]\n"
+            f"  Candidates          : {result.candidates}\n"
+            f"  {status.capitalize()}             : {result.merged}\n"
+            f"  Child rows reparented : {result.reparented}\n"
+            f"  Duplicates dropped   : {result.deleted_duplicates}\n"
+            f"  Aliases registered   : {result.aliases_registered}\n"
+            + (
+                "\n  Merged:\n  "
+                + "\n  ".join(f"{loser} -> {survivor}" for loser, survivor in result.merged_pairs)
+                if result.merged_pairs
+                else ""
+            ),
+            title=f"Dedup: {found.name}",
+        )
+    )
 
 
 # --------------------------------------------------------------------------- #

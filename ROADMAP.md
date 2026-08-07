@@ -27,7 +27,7 @@ Legend: 🟢 done · 🟡 in progress · ⚪ planned
 - 🟢 Technology fingerprinting ingestion (from `httpx -tech-detect`)
 - 🟢 Screenshot pipeline (`httpx -screenshot` capture)
 - 🟢 Port discovery integration (projectdiscovery `naabu`)
-- 🟡 Asset deduplication, aliasing and canonical-name resolution
+- 🟢 Asset deduplication, aliasing and canonical-name resolution
 
 ## Phase 3 — Monitoring & automation
 
@@ -35,7 +35,7 @@ Legend: 🟢 done · 🟡 in progress · ⚪ planned
 - 🟢 Historical tracking (snapshots + `snapshot`/`history` queries)
 - 🟢 Scheduled runs (`schedule add` / `schedule run`, cron-friendly)
 - 🟢 Notifications (Slack, Discord, console) via `Notifier` plugins
-- 🟡 Resumable, checkpointed scans
+- 🟢 Resumable, checkpointed scans
 
 ## Phase 4 — Analysis & AI assistance
 

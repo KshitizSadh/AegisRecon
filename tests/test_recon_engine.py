@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
+from conftest import add_scope
 
 from aegisrecon.core.models import AssetKind
 from aegisrecon.core.repositories import AssetRepository, DnsRecordRepository, IpRecordRepository
@@ -95,3 +98,61 @@ def test_ingest_respects_scope(monkeypatch, database, scoped_program) -> None:
     result = engine.ingest(scoped_program.id, ["ok.example.com", "evil.org", "api.example.com"])
     assert result.in_scope == 2
     assert result.discovered == 3
+
+
+def test_resume_skips_completed_roots(monkeypatch, database, scoped_program) -> None:
+    add_scope(database, scoped_program.id, "*.example.org", wildcard=True)
+
+    calls: list[str] = []
+
+    class Provider:
+        discovered = {
+            "example.com": ["api.example.com"],
+            "example.org": ["www.example.org"],
+        }
+
+        @classmethod
+        def create(cls, **kwargs):
+            return cls()
+
+        def query(self, domain: str) -> list[str]:
+            calls.append(domain)
+            return self.discovered.get(domain, [])
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(recon_module, "PASSIVE_SOURCES", {"fake": Provider})
+    monkeypatch.setattr(recon_module, "DnsResolver", _FakeResolver)
+
+    # Simulate an interrupted scan where example.com was already completed.
+    cp_dir = database.path.parent / "checkpoints"
+    cp_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint = cp_dir / f"{scoped_program.id}.json"
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "program_id": scoped_program.id,
+                "sources_done": {"fake": ["example.com"]},
+                "hostnames": ["api.example.com"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    engine = recon_module.ReconEngine(database, enable_ct_logs=True)
+    result = engine.run(scoped_program.id, sources=["fake"], resume=True)
+
+    assert calls == ["example.org"]  # completed root was skipped
+    assert result.in_scope == 2
+    names = _persisted_names(database)
+    assert {"api.example.com", "www.example.org"} <= names
+    assert not checkpoint.exists()  # checkpoint cleared after completion
+
+
+def _persisted_names(database) -> set[str]:
+    with database.session() as session:
+        assets = AssetRepository(session).list()
+        session.close()
+    return {a.name for a in assets}
