@@ -79,7 +79,7 @@ class HttpxProber:
         Raises:
             EngineError: When the httpx process exits abnormally.
         """
-        lines = list(targets)
+        lines = list(dict.fromkeys(targets))
         if not lines:
             return []
 
@@ -108,6 +108,11 @@ class HttpxProber:
             check=False,
         )
         if proc.returncode != 0:
+            logger.error(
+                "httpx exited %s; stderr: %s",
+                proc.returncode,
+                (proc.stderr or "").strip()[-2000:] or "(no stderr)",
+            )
             raise subprocess.CalledProcessError(proc.returncode, command, stderr=proc.stderr)
         return proc.stdout or ""
 
